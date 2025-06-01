@@ -52,12 +52,44 @@ const VideoPlayer = () => {
     video.addEventListener('loadedmetadata', updateDuration);
     video.addEventListener('ended', () => setIsPlaying(false));
 
+    // Add keyboard controls
+    const handleKeyPress = (e) => {
+      switch(e.key) {
+        case 'ArrowLeft':
+          skip(-5);
+          break;
+        case 'ArrowRight':
+          skip(5);
+          break;
+        case 'ArrowUp':
+          const newVolume = Math.min(1, volume + 0.1);
+          setVolume(newVolume);
+          video.volume = newVolume;
+          break;
+        case 'ArrowDown':
+          const lowerVolume = Math.max(0, volume - 0.1);
+          setVolume(lowerVolume);
+          video.volume = lowerVolume;
+          break;
+        case ' ':
+          togglePlay();
+          break;
+        case 'f':
+        case 'F':
+          toggleFullscreen();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+
     return () => {
       video.removeEventListener('timeupdate', updateTime);
       video.removeEventListener('loadedmetadata', updateDuration);
       video.removeEventListener('ended', () => setIsPlaying(false));
+      document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [videoSrc]);
+  }, [videoSrc, volume]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -108,7 +140,10 @@ const VideoPlayer = () => {
 
   const skip = (seconds) => {
     const video = videoRef.current;
-    video.currentTime = Math.max(0, Math.min(duration, video.currentTime + seconds));
+    if (!video) return;
+    const newTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const changePlaybackRate = (rate) => {
@@ -243,14 +278,14 @@ const VideoPlayer = () => {
                     </button>
 
                     <button
-                      onClick={() => skip(-10)}
+                      onClick={() => skip(-5)}
                       className="p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                       <RotateCcw className="w-5 h-5 text-white" />
                     </button>
 
                     <button
-                      onClick={() => skip(10)}
+                      onClick={() => skip(5)}
                       className="p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                       <RotateCw className="w-5 h-5 text-white" />
@@ -330,6 +365,13 @@ const VideoPlayer = () => {
             </div>
           </div>
         )}
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300">
+          <div><strong>Space:</strong> Play/Pause</div>
+          <div><strong>←/→:</strong> Skip 5s</div>
+          <div><strong>↑/↓:</strong> Volume</div>
+          <div><strong>F:</strong> Fullscreen</div>
+        </div>
       </div>
     </div>
   );
