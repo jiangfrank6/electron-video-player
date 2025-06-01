@@ -184,14 +184,14 @@ const VideoPlayer = () => {
 
         {videoSrc && (
           <div 
-            className="relative bg-black rounded-xl overflow-hidden shadow-2xl group"
+            className="relative bg-black rounded-xl overflow-hidden shadow-2xl group flex items-center justify-center"
             onMouseEnter={() => setShowControls(true)}
             onMouseLeave={() => setShowControls(false)}
           >
             <video
               ref={videoRef}
               src={videoSrc}
-              className="w-full aspect-video"
+              className="w-full aspect-video max-h-screen"
               onClick={togglePlay}
             />
             
