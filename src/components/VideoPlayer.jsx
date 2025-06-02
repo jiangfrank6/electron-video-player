@@ -34,6 +34,7 @@ const VideoPlayer = () => {
   const [tooltipTime, setTooltipTime] = useState(0);
   const progressBarRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const [isHoveringControls, setIsHoveringControls] = useState(false);
 
   // Sample videos
   const sampleVideos = [
@@ -663,12 +664,12 @@ const VideoPlayer = () => {
       clearTimeout(controlsTimeoutRef.current);
     }
 
-    // Set a new timeout to hide controls after 2.5 seconds of no movement
+    // Set a new timeout to hide controls after 0.5 seconds of no movement
     controlsTimeoutRef.current = setTimeout(() => {
-      if (!showSettings && !isDraggingProgress && isPlaying) {
+      if (!showSettings && !isDraggingProgress && isPlaying && !isHoveringControls) {
         setShowControls(false);
       }
-    }, 2500);
+    }, 500);
   };
 
   const handleMouseUp = () => {
@@ -972,27 +973,29 @@ const VideoPlayer = () => {
     };
   }, []);
 
-  // Add mouse move listener to video container
+  // Update hover tracking
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('mousemove', handleMouseMove);
-    container.addEventListener('mouseenter', () => setShowControls(true));
-    container.addEventListener('mouseleave', () => {
+    const handleMouseEnter = () => {
+      setShowControls(true);
+      setIsHoveringControls(false);
+    };
+
+    const handleMouseLeave = () => {
+      setIsHoveringControls(false);
       if (isPlaying && !showSettings && !isDraggingProgress) {
         setShowControls(false);
       }
-    });
+    };
+
+    container.addEventListener('mouseenter', handleMouseEnter);
+    container.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
-      container.removeEventListener('mousemove', handleMouseMove);
-      container.removeEventListener('mouseenter', () => setShowControls(true));
-      container.removeEventListener('mouseleave', () => {
-        if (isPlaying && !showSettings && !isDraggingProgress) {
-          setShowControls(false);
-        }
-      });
+      container.removeEventListener('mouseenter', handleMouseEnter);
+      container.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [isPlaying, showSettings, isDraggingProgress]);
 
@@ -1194,7 +1197,7 @@ const VideoPlayer = () => {
                     <div 
                       className={`absolute inset-0 flex items-center justify-center gap-8 transition-opacity duration-300 ${
                         showControls ? 'opacity-100' : 'opacity-0'
-                      }`}
+                      } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
                     >
                       {/* Rewind 5s */}
                       <button
@@ -1226,7 +1229,13 @@ const VideoPlayer = () => {
                     </div>
 
                     {/* Bottom controls */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                    <div 
+                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
+                        showControls ? 'opacity-100' : 'opacity-0'
+                      } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                      onMouseEnter={() => setIsHoveringControls(true)}
+                      onMouseLeave={() => setIsHoveringControls(false)}
+                    >
                       <div className="flex flex-col space-y-2">
                         {/* Progress bar */}
                         <div
