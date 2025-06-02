@@ -80,13 +80,17 @@ function createWindow() {
         frame: false,
         resizable: false,
         alwaysOnTop: true,
+        hasShadow: true,
+        level: 'floating',
+        focusable: false,
         webPreferences: {
           nodeIntegration: true,
           contextIsolation: false
         }
       });
 
-      // Set initial position if provided
+      miniplayerWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
       if (position) {
         miniplayerWindow.setPosition(position.x, position.y);
       }
