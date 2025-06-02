@@ -90,7 +90,7 @@ const VideoPlayer = () => {
       video.removeEventListener('ended', () => setIsPlaying(false));
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [videoSrc, volume]);
+  }, [videoSrc, volume, isPlaying]);
 
   // Check if we're in miniplayer mode on mount
   useEffect(() => {
