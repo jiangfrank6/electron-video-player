@@ -19,6 +19,10 @@ const VideoPlayer = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
+  const [windowStartSize, setWindowStartSize] = useState({ width: 0, height: 0 });
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16/9); // default to 16:9
 
   // Sample video URL (you can replace with your own)
   const sampleVideo = './videoplayback.mp4';
@@ -447,6 +451,94 @@ const VideoPlayer = () => {
     setDuration(0);
   };
 
+  // Add video metadata handler
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      const aspectRatio = video.videoWidth / video.videoHeight;
+      setVideoAspectRatio(aspectRatio);
+      
+      // Send aspect ratio to main process
+      if (isMiniplayer) {
+        const { ipcRenderer } = window.require('electron');
+        ipcRenderer.send('update-aspect-ratio', { aspectRatio });
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+  }, [videoSrc, isMiniplayer]);
+
+  // Add resize handlers
+  const handleResizeStart = (e) => {
+    if (!isMiniplayer) return;
+    e.stopPropagation(); // Prevent dragging when resizing
+    setIsResizing(true);
+    
+    const { ipcRenderer } = window.require('electron');
+    ipcRenderer.invoke('get-window-size').then((size) => {
+      setWindowStartSize(size);
+      setResizeStartPos({
+        x: e.screenX,
+        y: e.screenY
+      });
+    }).catch(console.error);
+  };
+
+  const handleResizeMove = (e) => {
+    if (!isResizing || !isMiniplayer) return;
+    e.stopPropagation();
+    
+    const deltaX = e.screenX - resizeStartPos.x;
+    const deltaY = e.screenY - resizeStartPos.y;
+    
+    const { ipcRenderer } = window.require('electron');
+    
+    // Calculate diagonal distance ratio
+    const startDiagonal = Math.sqrt(
+      windowStartSize.width * windowStartSize.width + 
+      windowStartSize.height * windowStartSize.height
+    );
+    const currentDiagonal = Math.sqrt(
+      (windowStartSize.width + deltaX) * (windowStartSize.width + deltaX) + 
+      (windowStartSize.height + deltaY) * (windowStartSize.height + deltaY)
+    );
+    const scale = currentDiagonal / startDiagonal;
+    
+    // Apply scale while maintaining aspect ratio
+    const newWidth = Math.round(windowStartSize.width * scale);
+    const newHeight = Math.round(windowStartSize.height * scale);
+    
+    ipcRenderer.send('resize-miniplayer', { width: newWidth, height: newHeight });
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isMiniplayer) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [isMiniplayer, isResizing, resizeStartPos, windowStartSize, videoAspectRatio]);
+
+  // Add resize cursor style
+  const resizeStyle = isMiniplayer ? {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: '12px',
+    height: '12px',
+    cursor: 'se-resize'
+  } : {};
+
   return (
     <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
       <div 
@@ -717,6 +809,13 @@ const VideoPlayer = () => {
             <div><strong>M:</strong> Mute</div>
             <div><strong>F:</strong> Fullscreen</div>
           </div>
+        )}
+
+        {isMiniplayer && (
+          <div
+            style={resizeStyle}
+            onMouseDown={handleResizeStart}
+          />
         )}
       </div>
     </div>
