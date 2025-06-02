@@ -4,7 +4,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow = null;
 let miniplayerWindow = null;
-let devServerPort = 3000;
+let devServerPort = 5173;
 
 // Track the dev server port
 ipcMain.on('update-dev-server-port', (event, port) => {
