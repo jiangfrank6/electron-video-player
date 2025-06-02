@@ -39,16 +39,28 @@ function createWindow() {
 
   // Get window position
   ipcMain.handle('get-window-position', (event) => {
-    if (miniplayerWindow) {
-      return miniplayerWindow.getPosition();
+    try {
+      if (miniplayerWindow) {
+        const [x, y] = miniplayerWindow.getPosition();
+        return [Math.round(x), Math.round(y)];
+      }
+      return [0, 0];
+    } catch (error) {
+      console.error('Error getting window position:', error);
+      return [0, 0];
     }
-    return [0, 0];
   });
 
   // Set window position
   ipcMain.on('set-miniplayer-position', (event, { x, y }) => {
-    if (miniplayerWindow) {
-      miniplayerWindow.setPosition(Math.round(x), Math.round(y));
+    try {
+      if (miniplayerWindow) {
+        const roundedX = Math.round(x);
+        const roundedY = Math.round(y);
+        miniplayerWindow.setPosition(roundedX, roundedY);
+      }
+    } catch (error) {
+      console.error('Error setting window position:', error);
     }
   });
 

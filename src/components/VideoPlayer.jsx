@@ -325,15 +325,17 @@ const VideoPlayer = () => {
   const handleMouseDown = (e) => {
     if (!isMiniplayer) return;
     setIsDragging(true);
+    
     const { ipcRenderer } = window.require('electron');
-    ipcRenderer.invoke('get-window-position').then(([windowX, windowY]) => {
+    ipcRenderer.invoke('get-window-position').then((position) => {
+      if (!Array.isArray(position)) return;
       setDragStartPos({
         mouseX: e.screenX,
         mouseY: e.screenY,
-        windowX,
-        windowY
+        windowX: position[0],
+        windowY: position[1]
       });
-    });
+    }).catch(console.error);
   };
 
   const handleMouseMove = (e) => {
@@ -341,8 +343,8 @@ const VideoPlayer = () => {
     const { ipcRenderer } = window.require('electron');
     const deltaX = e.screenX - dragStartPos.mouseX;
     const deltaY = e.screenY - dragStartPos.mouseY;
-    const newX = dragStartPos.windowX + deltaX;
-    const newY = dragStartPos.windowY + deltaY;
+    const newX = Math.round(dragStartPos.windowX + deltaX);
+    const newY = Math.round(dragStartPos.windowY + deltaY);
     ipcRenderer.send('set-miniplayer-position', { x: newX, y: newY });
   };
 
