@@ -37,6 +37,21 @@ function createWindow() {
     }
   });
 
+  // Get window position
+  ipcMain.handle('get-window-position', (event) => {
+    if (miniplayerWindow) {
+      return miniplayerWindow.getPosition();
+    }
+    return [0, 0];
+  });
+
+  // Set window position
+  ipcMain.on('set-miniplayer-position', (event, { x, y }) => {
+    if (miniplayerWindow) {
+      miniplayerWindow.setPosition(Math.round(x), Math.round(y));
+    }
+  });
+
   // Listen for miniplayer toggle
   ipcMain.on('toggle-miniplayer', (event, { videoTime, videoSrc, isPlaying }) => {
     if (!miniplayerWindow) {
@@ -73,14 +88,6 @@ function createWindow() {
       miniplayerWindow.close();
       miniplayerWindow = null;
     }
-  });
-
-  // Handle window dragging
-  ipcMain.on('move-miniplayer', (event, { deltaX, deltaY }) => {
-    if (!miniplayerWindow) return;
-    
-    const [x, y] = miniplayerWindow.getPosition();
-    miniplayerWindow.setPosition(x + deltaX, y + deltaY);
   });
 }
 

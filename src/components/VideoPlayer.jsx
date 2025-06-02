@@ -15,7 +15,6 @@ const VideoPlayer = () => {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [videoSrc, setVideoSrc] = useState('');
-  const [currentTheme, setCurrentTheme] = useState('ocean');
   const [isMiniplayer, setIsMiniplayer] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
@@ -23,27 +22,24 @@ const VideoPlayer = () => {
   // Sample video URL (you can replace with your own)
   const sampleVideo = './videoplayback.mp4';
 
-  // Theme configurations
-  const themes = {
-    ocean: {
-      name: 'Ocean Blue',
-      bg: 'bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-900',
-      card: 'bg-slate-800/50',
-      title: 'bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent',
-      button: 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700',
-      progress: 'bg-gradient-to-r from-blue-500 to-cyan-500'
-    },
-    monochrome: {
-      name: 'Monochrome',
-      bg: 'bg-gradient-to-br from-gray-900 via-gray-800 to-black',
-      card: 'bg-gray-800/50',
-      title: 'bg-gradient-to-r from-gray-300 to-white bg-clip-text text-transparent',
-      button: 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800',
-      progress: 'bg-gradient-to-r from-gray-400 to-gray-500'
-    }
+  // Theme configuration
+  const theme = {
+    bg: 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-950 via-gray-900 to-black',
+    card: 'bg-gradient-to-br from-gray-800/20 to-gray-900/20',
+    title: 'bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent',
+    button: 'bg-gradient-to-r from-gray-700/80 to-gray-800/80 hover:from-gray-600/90 hover:to-gray-700/90',
+    progress: 'bg-gradient-to-r from-white to-gray-300',
+    overlay: 'bg-gradient-to-t from-black/70 via-black/30 to-transparent',
+    miniplayerOverlay: 'bg-gradient-to-t from-black/60 via-black/20 to-transparent',
+    playerBg: 'bg-black'
   };
 
-  const theme = themes[currentTheme];
+  const videoContainerStyle = {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    cursor: isMiniplayer ? 'grab' : 'default',
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -324,37 +320,64 @@ const VideoPlayer = () => {
     }
   };
 
+  // Add mouse event handlers for dragging
+  const handleMouseDown = (e) => {
+    if (!isMiniplayer) return;
+    setIsDragging(true);
+    const { ipcRenderer } = window.require('electron');
+    ipcRenderer.invoke('get-window-position').then(([windowX, windowY]) => {
+      setDragStartPos({
+        mouseX: e.screenX,
+        mouseY: e.screenY,
+        windowX,
+        windowY
+      });
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !isMiniplayer) return;
+    const { ipcRenderer } = window.require('electron');
+    const deltaX = e.screenX - dragStartPos.mouseX;
+    const deltaY = e.screenY - dragStartPos.mouseY;
+    const newX = dragStartPos.windowX + deltaX;
+    const newY = dragStartPos.windowY + deltaY;
+    ipcRenderer.send('set-miniplayer-position', { x: newX, y: newY });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isMiniplayer) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isMiniplayer, isDragging, dragStartPos]);
+
   return (
     <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
       <div 
         ref={containerRef}
-        className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'}`}
+        className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'} relative`}
+        style={videoContainerStyle}
+        onMouseDown={handleMouseDown}
       >
         {!isMiniplayer && (
           <div className="flex items-center justify-between mb-8">
             <h1 className={`text-4xl font-bold ${theme.title}`}>
               Custom Video Player
             </h1>
-            
-            {/* Theme Selector */}
-            <div className="relative">
-              <select
-                value={currentTheme}
-                onChange={(e) => setCurrentTheme(e.target.value)}
-                className="bg-gray-800/70 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {Object.entries(themes).map(([key, theme]) => (
-                  <option key={key} value={key} className="bg-gray-800">
-                    {theme.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         )}
         
         {!videoSrc && !isMiniplayer && (
-          <div className={`${theme.card} backdrop-blur-sm rounded-xl p-8 mb-8 border border-gray-700`}>
+          <div className={`${theme.card} rounded-xl p-8 mb-8 border border-gray-800/20`}>
             <h2 className="text-xl font-semibold text-white mb-4">Load a Video</h2>
             <div className="flex flex-col sm:flex-row gap-4">
               <button
@@ -378,27 +401,36 @@ const VideoPlayer = () => {
 
         {videoSrc && (
           <div 
-            className={`relative bg-black rounded-xl overflow-hidden shadow-2xl group ${isMiniplayer ? 'w-full h-full' : ''}`}
+            className={`relative overflow-hidden group ${isMiniplayer ? 'w-full h-full' : ''} rounded-lg`}
             onMouseEnter={() => setShowControls(true)}
             onMouseLeave={() => setShowControls(false)}
           >
-            <video
-              ref={videoRef}
-              src={videoSrc}
-              className={`${isMiniplayer ? 'w-full h-full' : 'w-full aspect-video'}`}
-              onClick={togglePlay}
-            />
+            {/* Video Container */}
+            <div className="relative w-full h-full">
+              <video
+                ref={videoRef}
+                src={videoSrc}
+                className={`${
+                  isMiniplayer 
+                    ? 'w-full h-full object-contain bg-black'
+                    : 'w-full aspect-video'
+                }`}
+                onClick={togglePlay}
+              />
+            </div>
             
             {/* Controls Overlay */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`absolute inset-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} z-30`}>
+              {/* Semi-transparent gradient overlay for controls */}
+              <div className={`absolute inset-0 ${isMiniplayer ? theme.miniplayerOverlay : theme.overlay}`} />
               
               {isMiniplayer ? (
-                // Miniplayer Controls - Centered simple controls
+                // Miniplayer Controls
                 <>
-                  {/* Close button */}
+                  {/* Close button with theme-aware styling */}
                   <button
                     onClick={toggleMiniplayer}
-                    className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200 z-10"
+                    className={`absolute top-2 right-2 p-1.5 ${theme.button} backdrop-blur-xl rounded-full z-10 opacity-90 hover:opacity-100 transition-all duration-200`}
                   >
                     <X className="w-4 h-4 text-white" />
                   </button>
@@ -406,14 +438,14 @@ const VideoPlayer = () => {
                   <div className="absolute inset-0 flex items-center justify-center gap-4">
                     <button
                       onClick={() => skip(-5)}
-                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                      className={`p-2 ${theme.button} backdrop-blur-xl rounded-full opacity-90 hover:opacity-100 transition-all duration-200`}
                     >
                       <RotateCcw className="w-5 h-5 text-white" />
                     </button>
 
                     <button
                       onClick={togglePlay}
-                      className="p-4 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                      className={`p-4 ${theme.button} backdrop-blur-xl rounded-full opacity-90 hover:opacity-100 transition-all duration-200`}
                     >
                       {isPlaying ? (
                         <Pause className="w-8 h-8 text-white" />
@@ -424,7 +456,7 @@ const VideoPlayer = () => {
 
                     <button
                       onClick={() => skip(5)}
-                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                      className={`p-2 ${theme.button} backdrop-blur-xl rounded-full opacity-90 hover:opacity-100 transition-all duration-200`}
                     >
                       <RotateCw className="w-5 h-5 text-white" />
                     </button>
