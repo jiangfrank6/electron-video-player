@@ -451,7 +451,7 @@ const VideoPlayer = () => {
     <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
       <div 
         ref={containerRef}
-        className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'} relative ${isFullscreen ? 'fixed inset-0 bg-black z-50' : ''}`}
+        className={`${isMiniplayer ? 'w-full h-full bg-black' : 'max-w-6xl mx-auto'} relative ${isFullscreen ? 'fixed inset-0 bg-black z-50' : ''}`}
         style={videoContainerStyle}
         onMouseDown={handleMouseDown}
       >
@@ -473,7 +473,7 @@ const VideoPlayer = () => {
         )}
         
         {!videoSrc && !isMiniplayer && !isFullscreen && (
-          <div className={`${theme.card} rounded-xl p-8 mb-8 border border-gray-800/20`}>
+          <div className={`${theme.card} p-8 mb-8 border border-gray-800/20`}>
             <h2 className="text-xl font-semibold text-white mb-4">Load a Video</h2>
             <div className="flex flex-col sm:flex-row gap-4">
               <button
@@ -663,7 +663,7 @@ const VideoPlayer = () => {
 
                           {/* Settings Menu */}
                           {showSettings && (
-                            <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 rounded-lg shadow-lg">
+                            <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 shadow-lg">
                               <div className="p-2">
                                 <div className="text-white text-sm font-medium mb-2">Playback Speed</div>
                                 {[0.5, 1, 1.5, 2].map((rate) => (
@@ -672,7 +672,7 @@ const VideoPlayer = () => {
                                     onClick={() => changePlaybackRate(rate)}
                                     className={`w-full text-left px-3 py-1 text-sm ${
                                       playbackRate === rate ? 'text-blue-400' : 'text-white'
-                                    } hover:bg-white/10 rounded`}
+                                    } hover:bg-white/10`}
                                   >
                                     {rate}x
                                   </button>

@@ -83,6 +83,8 @@ function createWindow() {
         hasShadow: true,
         level: 'floating',
         focusable: false,
+        transparent: true,
+        backgroundColor: '#00000000',
         webPreferences: {
           nodeIntegration: true,
           contextIsolation: false
