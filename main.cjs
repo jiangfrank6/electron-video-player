@@ -4,6 +4,12 @@ const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow = null;
 let miniplayerWindow = null;
+let devServerPort = 3000;
+
+// Track the dev server port
+ipcMain.on('update-dev-server-port', (event, port) => {
+  devServerPort = port;
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -15,12 +21,8 @@ function createWindow() {
     }
   });
 
-  // Load the app
-  if (process.env.NODE_ENV !== 'production') {
-    mainWindow.loadURL('http://localhost:5173');
-  } else {
-    mainWindow.loadFile('dist/index.html');
-  }
+  // Load the Vite development server URL
+  mainWindow.loadURL(`http://localhost:${devServerPort}`);
 
   // Handle time synchronization
   ipcMain.on('sync-time', (event, { time }) => {
@@ -140,12 +142,29 @@ function createWindow() {
 
       miniplayerWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-      if (position) {
-        miniplayerWindow.setPosition(position.x, position.y);
+      // Set position with better error handling
+      if (position && typeof position.x === 'number' && typeof position.y === 'number') {
+        try {
+          const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+          const [winWidth, winHeight] = miniplayerWindow.getSize();
+          
+          // Ensure window is within screen bounds
+          const x = Math.max(0, Math.min(position.x, screenWidth - winWidth));
+          const y = Math.max(0, Math.min(position.y, screenHeight - winHeight));
+          
+          miniplayerWindow.setPosition(Math.round(x), Math.round(y));
+        } catch (error) {
+          console.error('Error setting initial miniplayer position:', error);
+          // Use default center position if there's an error
+          miniplayerWindow.center();
+        }
+      } else {
+        // Default to center if no position provided
+        miniplayerWindow.center();
       }
 
       const miniplayerUrl = process.env.NODE_ENV !== 'production'
-        ? `http://localhost:5173?miniplayer=true&videoSrc=${encodeURIComponent(videoSrc)}&time=${videoTime}&isPlaying=${isPlaying}`
+        ? `http://localhost:${devServerPort}?miniplayer=true&videoSrc=${encodeURIComponent(videoSrc)}&time=${videoTime}&isPlaying=${isPlaying}`
         : `file://${path.join(__dirname, 'dist/index.html')}?miniplayer=true&videoSrc=${encodeURIComponent(videoSrc)}&time=${videoTime}&isPlaying=${isPlaying}`;
 
       miniplayerWindow.loadURL(miniplayerUrl);
