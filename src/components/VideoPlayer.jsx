@@ -65,11 +65,13 @@ const VideoPlayer = () => {
           const newVolume = Math.min(1, volume + 0.1);
           setVolume(newVolume);
           video.volume = newVolume;
+          setIsMuted(false);
           break;
         case 'ArrowDown':
           const lowerVolume = Math.max(0, volume - 0.1);
           setVolume(lowerVolume);
           video.volume = lowerVolume;
+          setIsMuted(lowerVolume === 0);
           break;
         case ' ':
           e.preventDefault(); // Prevent default spacebar behavior
@@ -81,6 +83,7 @@ const VideoPlayer = () => {
           break;
         case 'm':
         case 'M':
+          e.preventDefault();
           toggleMute();
           break;
       }
@@ -94,7 +97,7 @@ const VideoPlayer = () => {
       video.removeEventListener('ended', () => setIsPlaying(false));
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [videoSrc, volume, isPlaying]);
+  }, [videoSrc, volume, isPlaying, isMuted]);
 
   // Check if we're in miniplayer mode on mount
   useEffect(() => {
@@ -259,11 +262,21 @@ const VideoPlayer = () => {
 
   const toggleMute = () => {
     const video = videoRef.current;
+    if (!video) return;
+
     if (isMuted) {
-      video.volume = volume;
+      // When unmuting, restore the previous volume if it exists, otherwise use 0.5
+      const previousVolume = volume > 0 ? volume : 0.5;
+      video.volume = previousVolume;
+      setVolume(previousVolume);
       setIsMuted(false);
     } else {
+      // When muting, keep track of current volume but set video volume to 0
+      const currentVolume = video.volume;
       video.volume = 0;
+      if (currentVolume > 0) {
+        setVolume(currentVolume); // Store the current volume for later
+      }
       setIsMuted(true);
     }
   };
