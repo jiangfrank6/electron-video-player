@@ -273,146 +273,179 @@ const VideoPlayer = () => {
             {/* Controls Overlay */}
             <div className={`absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
               
-              {/* Play/Pause Center Button */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <button
-                  onClick={togglePlay}
-                  className="p-4 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
-                >
-                  {isPlaying ? (
-                    <Pause className="w-8 h-8 text-white" />
-                  ) : (
-                    <Play className="w-8 h-8 text-white ml-1" />
-                  )}
-                </button>
-              </div>
-
-              {/* Bottom Controls */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                {/* Progress Bar */}
-                <div
-                  ref={progressRef}
-                  className="w-full h-2 bg-white/20 rounded-full mb-4 cursor-pointer hover:bg-white/30 transition-colors"
-                  onClick={handleProgressClick}
-                >
-                  <div
-                    className={`h-full ${theme.progress} rounded-full relative`}
-                    style={{ width: `${(currentTime / duration) * 100}%` }}
+              {isMiniplayer ? (
+                // Miniplayer Controls - Centered simple controls
+                <div className="absolute inset-0 flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => skip(-5)}
+                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
                   >
-                    <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
-                  </div>
-                </div>
+                    <RotateCcw className="w-5 h-5 text-white" />
+                  </button>
 
-                {/* Control Buttons */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
+                  <button
+                    onClick={togglePlay}
+                    className="p-4 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-8 h-8 text-white" />
+                    ) : (
+                      <Play className="w-8 h-8 text-white ml-1" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => skip(5)}
+                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                  >
+                    <RotateCw className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+              ) : (
+                // Main player controls - Keep existing controls
+                <>
+                  {/* Play/Pause Center Button */}
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <button
                       onClick={togglePlay}
-                      className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                      className="p-4 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
                     >
                       {isPlaying ? (
-                        <Pause className="w-5 h-5 text-white" />
+                        <Pause className="w-8 h-8 text-white" />
                       ) : (
-                        <Play className="w-5 h-5 text-white" />
+                        <Play className="w-8 h-8 text-white ml-1" />
                       )}
                     </button>
+                  </div>
 
-                    <button
-                      onClick={() => skip(-5)}
-                      className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  {/* Bottom Controls */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    {/* Progress Bar */}
+                    <div
+                      ref={progressRef}
+                      className="w-full h-2 bg-white/20 rounded-full mb-4 cursor-pointer hover:bg-white/30 transition-colors"
+                      onClick={handleProgressClick}
                     >
-                      <RotateCcw className="w-5 h-5 text-white" />
-                    </button>
-
-                    <button
-                      onClick={() => skip(5)}
-                      className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                    >
-                      <RotateCw className="w-5 h-5 text-white" />
-                    </button>
-
-                    {/* Volume Control */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={toggleMute}
-                        className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                      >
-                        {isMuted ? (
-                          <VolumeX className="w-5 h-5 text-white" />
-                        ) : (
-                          <Volume2 className="w-5 h-5 text-white" />
-                        )}
-                      </button>
                       <div
-                        ref={volumeRef}
-                        className="w-20 h-2 bg-white/20 rounded-full cursor-pointer"
-                        onClick={handleVolumeChange}
+                        className={`h-full ${theme.progress} rounded-full relative`}
+                        style={{ width: `${(currentTime / duration) * 100}%` }}
                       >
-                        <div
-                          className="h-full bg-white rounded-full"
-                          style={{ width: `${isMuted ? 0 : volume * 100}%` }}
-                        ></div>
+                        <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
                       </div>
                     </div>
 
-                    {/* Time Display */}
-                    <div className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(duration)}
-                    </div>
-                  </div>
+                    {/* Control Buttons */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={togglePlay}
+                          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                        >
+                          {isPlaying ? (
+                            <Pause className="w-5 h-5 text-white" />
+                          ) : (
+                            <Play className="w-5 h-5 text-white" />
+                          )}
+                        </button>
 
-                  <div className="flex items-center space-x-4">
-                    {/* Settings Button */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowSettings(!showSettings)}
-                        className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                      >
-                        <Settings className="w-5 h-5 text-white" />
-                      </button>
+                        <button
+                          onClick={() => skip(-5)}
+                          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                        >
+                          <RotateCcw className="w-5 h-5 text-white" />
+                        </button>
 
-                      {/* Settings Menu */}
-                      {showSettings && (
-                        <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 rounded-lg shadow-lg">
-                          <div className="p-2">
-                            <div className="text-white text-sm font-medium mb-2">Playback Speed</div>
-                            {[0.5, 1, 1.5, 2].map((rate) => (
-                              <button
-                                key={rate}
-                                onClick={() => changePlaybackRate(rate)}
-                                className={`w-full text-left px-3 py-1 text-sm ${
-                                  playbackRate === rate ? 'text-blue-400' : 'text-white'
-                                } hover:bg-white/10 rounded`}
-                              >
-                                {rate}x
-                              </button>
-                            ))}
+                        <button
+                          onClick={() => skip(5)}
+                          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                        >
+                          <RotateCw className="w-5 h-5 text-white" />
+                        </button>
+
+                        {/* Volume Control */}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={toggleMute}
+                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                          >
+                            {isMuted ? (
+                              <VolumeX className="w-5 h-5 text-white" />
+                            ) : (
+                              <Volume2 className="w-5 h-5 text-white" />
+                            )}
+                          </button>
+                          <div
+                            ref={volumeRef}
+                            className="w-20 h-2 bg-white/20 rounded-full cursor-pointer"
+                            onClick={handleVolumeChange}
+                          >
+                            <div
+                              className="h-full bg-white rounded-full"
+                              style={{ width: `${isMuted ? 0 : volume * 100}%` }}
+                            ></div>
                           </div>
                         </div>
-                      )}
+
+                        {/* Time Display */}
+                        <div className="text-white text-sm">
+                          {formatTime(currentTime)} / {formatTime(duration)}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-4">
+                        {/* Settings Button */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowSettings(!showSettings)}
+                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                          >
+                            <Settings className="w-5 h-5 text-white" />
+                          </button>
+
+                          {/* Settings Menu */}
+                          {showSettings && (
+                            <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 rounded-lg shadow-lg">
+                              <div className="p-2">
+                                <div className="text-white text-sm font-medium mb-2">Playback Speed</div>
+                                {[0.5, 1, 1.5, 2].map((rate) => (
+                                  <button
+                                    key={rate}
+                                    onClick={() => changePlaybackRate(rate)}
+                                    className={`w-full text-left px-3 py-1 text-sm ${
+                                      playbackRate === rate ? 'text-blue-400' : 'text-white'
+                                    } hover:bg-white/10 rounded`}
+                                  >
+                                    {rate}x
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Miniplayer Button */}
+                        {!isMiniplayer && (
+                          <button
+                            onClick={toggleMiniplayer}
+                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                            title="Miniplayer"
+                          >
+                            <MinimizeIcon className="w-5 h-5 text-white" />
+                          </button>
+                        )}
+
+                        {/* Fullscreen Button */}
+                        <button
+                          onClick={toggleFullscreen}
+                          className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                        >
+                          <Maximize className="w-5 h-5 text-white" />
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Miniplayer Button */}
-                    {!isMiniplayer && (
-                      <button
-                        onClick={toggleMiniplayer}
-                        className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                        title="Miniplayer"
-                      >
-                        <MinimizeIcon className="w-5 h-5 text-white" />
-                      </button>
-                    )}
-
-                    {/* Fullscreen Button */}
-                    <button
-                      onClick={toggleFullscreen}
-                      className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                    >
-                      <Maximize className="w-5 h-5 text-white" />
-                    </button>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}
