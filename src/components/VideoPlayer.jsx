@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X, ArrowLeft, SkipBack, SkipForward } from 'lucide-react';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -937,6 +937,7 @@ const VideoPlayer = () => {
                 <div>↑/↓: Volume</div>
                 <div>M: Mute</div>
                 <div>F: Fullscreen</div>
+                <div>PageUp/Down: Previous/Next Video</div>
               </div>
             </div>
 
@@ -1076,6 +1077,15 @@ const VideoPlayer = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <button
+                            onClick={playPreviousVideo}
+                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                            disabled={currentQueueIndex === 0}
+                            title="Previous video"
+                          >
+                            <SkipBack className={`w-5 h-5 ${currentQueueIndex === 0 ? 'text-gray-500' : 'text-white'}`} />
+                          </button>
+
+                          <button
                             onClick={togglePlay}
                             className="p-2 hover:bg-white/20 rounded-full transition-colors"
                           >
@@ -1087,17 +1097,12 @@ const VideoPlayer = () => {
                           </button>
 
                           <button
-                            onClick={() => skip(-5)}
+                            onClick={playNextVideo}
                             className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                            disabled={currentQueueIndex === videoQueue.length - 1}
+                            title="Next video"
                           >
-                            <RotateCcw className="w-5 h-5 text-white" />
-                          </button>
-
-                          <button
-                            onClick={() => skip(5)}
-                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                          >
-                            <RotateCw className="w-5 h-5 text-white" />
+                            <SkipForward className={`w-5 h-5 ${currentQueueIndex === videoQueue.length - 1 ? 'text-gray-500' : 'text-white'}`} />
                           </button>
 
                           {/* Volume Control */}
