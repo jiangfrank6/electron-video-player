@@ -1069,7 +1069,7 @@ const VideoPlayer = () => {
               <div className="p-4 border-b border-gray-800">
                 <h2 className={`text-xl font-semibold ${theme.title}`}>Video Queue</h2>
               </div>
-              <Droppable droppableId="video-queue">
+              <Droppable droppableId="video-queue" direction="vertical">
                 {(provided, snapshot) => (
                   <div
                     {...provided.droppableProps}
