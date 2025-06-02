@@ -341,6 +341,13 @@ const VideoPlayer = () => {
     if (videoRef.current) {
       const wasPlaying = !videoRef.current.paused;
       if (!isMiniplayer) {
+        // Exit fullscreen if active before opening miniplayer
+        if (document.fullscreenElement) {
+          document.exitFullscreen().then(() => {
+            setIsFullscreen(false);
+          }).catch(console.error);
+        }
+        
         videoRef.current.pause();
         setIsPlaying(false);
         // Get screen dimensions and set initial position
