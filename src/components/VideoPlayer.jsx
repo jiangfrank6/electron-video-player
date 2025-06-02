@@ -508,11 +508,40 @@ const VideoPlayer = () => {
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      const newVideos = files.map(file => ({
-        name: file.name,
-        path: URL.createObjectURL(file),
-        file
-      }));
+      const newVideos = files.map(file => {
+        // Check if the file is an MKV
+        const isMkv = file.name.toLowerCase().endsWith('.mkv');
+        
+        // Create object URL for the video
+        const videoUrl = URL.createObjectURL(file);
+        
+        // Check if the video format is supported
+        const video = document.createElement('video');
+        video.onloadedmetadata = () => {
+          if (video.videoWidth === 0) {
+            console.error(`Unsupported video format: ${file.name}`);
+            // Clean up the object URL
+            URL.revokeObjectURL(videoUrl);
+            // Remove the video from queue if it's already added
+            setVideoQueue(prev => prev.filter(v => v.path !== videoUrl));
+            // Show error to user
+            const { ipcRenderer } = window.require('electron');
+            ipcRenderer.send('show-error', {
+              title: 'Unsupported Format',
+              message: `The video format of "${file.name}" is not supported by your browser. You may need to convert it to a supported format.`
+            });
+          }
+        };
+        video.src = videoUrl;
+
+        return {
+          name: file.name,
+          path: videoUrl,
+          file,
+          type: isMkv ? 'video/x-matroska' : file.type
+        };
+      });
+
       setVideoQueue([...videoQueue, ...newVideos]);
       if (!videoSrc) {
         setVideoSrc(newVideos[0].path);
@@ -1084,7 +1113,7 @@ const VideoPlayer = () => {
                         <span className="text-white">Add More Videos</span>
                         <input
                           type="file"
-                          accept="video/*"
+                          accept="video/*,.mkv"
                           multiple
                           onChange={handleFileUpload}
                           className="hidden"
@@ -1220,7 +1249,7 @@ const VideoPlayer = () => {
                       {/* Rewind 5s */}
                       <button
                         onClick={() => skip(-5)}
-                        className="p-3 bg-black/40 hover:bg-black/60 rounded-full transition-all duration-200 backdrop-blur-sm group"
+                        className="p-3 bg-black/40 hover:bg-black/60 rounded-full transition-all duration-200 group"
                       >
                         <RotateCcw className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
                       </button>
