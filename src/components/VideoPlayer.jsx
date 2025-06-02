@@ -478,11 +478,19 @@ const VideoPlayer = () => {
     setIsResizing(true);
     
     const { ipcRenderer } = window.require('electron');
-    ipcRenderer.invoke('get-window-size').then((size) => {
+    Promise.all([
+      ipcRenderer.invoke('get-window-size'),
+      ipcRenderer.invoke('get-window-position'),
+      ipcRenderer.invoke('get-screen-dimensions')
+    ]).then(([size, position, screenDims]) => {
       setWindowStartSize(size);
       setResizeStartPos({
         x: e.screenX,
-        y: e.screenY
+        y: e.screenY,
+        windowX: position[0],
+        windowY: position[1],
+        screenWidth: screenDims[0],
+        screenHeight: screenDims[1]
       });
     }).catch(console.error);
   };
@@ -491,12 +499,26 @@ const VideoPlayer = () => {
     if (!isResizing || !isMiniplayer) return;
     e.stopPropagation();
     
-    const deltaX = e.screenX - resizeStartPos.x;
-    const deltaY = e.screenY - resizeStartPos.y;
+    // Calculate the intended cursor position, even if it's beyond screen bounds
+    let effectiveX = e.screenX;
+    let effectiveY = e.screenY;
+
+    // If cursor is at screen edge, extrapolate the intended position
+    if (e.screenX >= resizeStartPos.screenWidth - 1) {
+      const overflowRatio = (e.screenX - resizeStartPos.x) / (resizeStartPos.screenWidth - resizeStartPos.x);
+      effectiveX = resizeStartPos.x + (resizeStartPos.screenWidth - resizeStartPos.x) * Math.max(1, overflowRatio);
+    }
+    if (e.screenY >= resizeStartPos.screenHeight - 1) {
+      const overflowRatio = (e.screenY - resizeStartPos.y) / (resizeStartPos.screenHeight - resizeStartPos.y);
+      effectiveY = resizeStartPos.y + (resizeStartPos.screenHeight - resizeStartPos.y) * Math.max(1, overflowRatio);
+    }
+
+    const deltaX = effectiveX - resizeStartPos.x;
+    const deltaY = effectiveY - resizeStartPos.y;
     
     const { ipcRenderer } = window.require('electron');
     
-    // Calculate diagonal distance ratio
+    // Calculate diagonal distance ratio using effective coordinates
     const startDiagonal = Math.sqrt(
       windowStartSize.width * windowStartSize.width + 
       windowStartSize.height * windowStartSize.height

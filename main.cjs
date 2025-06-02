@@ -51,6 +51,40 @@ function createWindow() {
     }
   });
 
+  // Get window size
+  ipcMain.handle('get-window-size', (event) => {
+    try {
+      if (miniplayerWindow) {
+        const [width, height] = miniplayerWindow.getSize();
+        return { width, height };
+      }
+      return { width: 320, height: 180 };
+    } catch (error) {
+      console.error('Error getting window size:', error);
+      return { width: 320, height: 180 };
+    }
+  });
+
+  // Get screen dimensions
+  ipcMain.handle('get-screen-dimensions', () => {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+    return [width, height];
+  });
+
+  // Handle window resizing
+  ipcMain.on('resize-miniplayer', (event, { width, height }) => {
+    try {
+      if (miniplayerWindow) {
+        const newWidth = Math.max(200, Math.round(width));
+        const newHeight = Math.round(height); // Height will be automatically adjusted by aspect ratio
+        miniplayerWindow.setSize(newWidth, newHeight);
+      }
+    } catch (error) {
+      console.error('Error resizing window:', error);
+    }
+  });
+
   // Set window position
   ipcMain.on('set-miniplayer-position', (event, { x, y }) => {
     try {
@@ -64,13 +98,6 @@ function createWindow() {
     }
   });
 
-  // Add screen dimensions handler
-  ipcMain.handle('get-screen-dimensions', () => {
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.workAreaSize;
-    return [width, height];
-  });
-
   // Listen for miniplayer toggle
   ipcMain.on('toggle-miniplayer', (event, { videoTime, videoSrc, isPlaying, position }) => {
     if (!miniplayerWindow) {
@@ -78,7 +105,9 @@ function createWindow() {
         width: 320,
         height: 180,
         frame: false,
-        resizable: false,
+        resizable: true,
+        minWidth: 200,  // Base minimum width
+        minHeight: 112, // Will be adjusted based on video aspect ratio
         alwaysOnTop: true,
         hasShadow: true,
         level: 'floating',
@@ -90,6 +119,8 @@ function createWindow() {
           contextIsolation: false
         }
       });
+
+      miniplayerWindow.setAspectRatio(16/9); // Default aspect ratio, will be updated when video loads
 
       miniplayerWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -111,6 +142,20 @@ function createWindow() {
         miniplayerWindow.close();
         miniplayerWindow = null;
       }
+    }
+  });
+
+  // Update aspect ratio
+  ipcMain.on('update-aspect-ratio', (event, { aspectRatio }) => {
+    try {
+      if (miniplayerWindow) {
+        miniplayerWindow.setAspectRatio(aspectRatio);
+        // Update minimum height based on minimum width and aspect ratio
+        const minHeight = Math.round(200 / aspectRatio); // 200 is minWidth
+        miniplayerWindow.setMinimumSize(200, minHeight);
+      }
+    } catch (error) {
+      console.error('Error updating aspect ratio:', error);
     }
   });
 }
