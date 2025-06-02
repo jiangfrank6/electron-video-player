@@ -79,6 +79,10 @@ const VideoPlayer = () => {
         case 'F':
           toggleFullscreen();
           break;
+        case 'm':
+        case 'M':
+          toggleMute();
+          break;
       }
     };
 
@@ -615,10 +619,11 @@ const VideoPlayer = () => {
         )}
 
         {!isMiniplayer && videoSrc && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm text-gray-300 mt-4">
             <div><strong>Space:</strong> Play/Pause</div>
             <div><strong>←/→:</strong> Skip 5s</div>
             <div><strong>↑/↓:</strong> Volume</div>
+            <div><strong>M:</strong> Mute</div>
             <div><strong>F:</strong> Fullscreen</div>
           </div>
         )}
