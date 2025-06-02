@@ -1062,7 +1062,7 @@ const VideoPlayer = () => {
           />
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragEnd={handleDragEnd} lockAxis="vertical">
           <div className="flex h-screen">
             {/* Left side - Video Queue */}
             <div className={`w-80 flex flex-col ${theme.bg}`}>
@@ -1079,7 +1079,7 @@ const VideoPlayer = () => {
                     }`}
                   >
                     {/* Upload button - Always visible */}
-                    <div className="mb-4">
+                    <div className="sticky top-0 z-10 -mx-4 -mt-4 px-4 pt-4 pb-4 bg-[#0a0b0e]">
                       <label className="flex items-center justify-center w-full p-3 bg-[#25262b] hover:bg-[#2c2d31] rounded-lg cursor-pointer transition-all duration-200">
                         <span className="text-white">Add More Videos</span>
                         <input
@@ -1092,92 +1092,101 @@ const VideoPlayer = () => {
                       </label>
                     </div>
 
-                    {/* Sample videos section - only show if queue is empty */}
-                    {videoQueue.length === 0 && (
-                      <div className="flex flex-col gap-2">
-                        {sampleVideos.map((video, index) => (
-                          <div
-                            key={video.path}
-                            className="flex items-center h-[52px] p-3 bg-[#1e1f25] hover:bg-[#25262b] rounded-lg transition-all duration-200"
-                          >
-                            {/* Grip icon for visual consistency */}
-                            <div className="mr-2">
-                              <GripVertical className="w-4 h-4 text-gray-400" />
-                            </div>
-
-                            {/* Video info */}
-                            <div 
-                              className="flex-1 min-w-0 mr-2 cursor-pointer"
-                              onClick={() => loadSampleVideo(video)}
-                            >
-                              <div className="text-white font-medium truncate">
-                                {video.name}
-                              </div>
-                            </div>
-
-                            {/* Play button */}
-                            <button
-                              onClick={() => loadSampleVideo(video)}
-                              className="p-1.5 hover:bg-blue-500 rounded transition-colors"
-                              title="Play video"
-                            >
-                              <Play className="w-4 h-4 text-white" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Video queue items */}
-                    {videoQueue.map((video, index) => (
-                      <Draggable 
-                        key={video.path} 
-                        draggableId={video.path} 
-                        index={index}
-                      >
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`flex items-center h-[52px] p-3 mb-2 rounded-lg transition-all duration-200 ${
-                              snapshot.isDragging
-                                ? 'bg-blue-600 shadow-lg'
-                                : currentQueueIndex === index
-                                ? 'bg-[#2c2d31]'
-                                : 'bg-[#1e1f25] hover:bg-[#25262b]'
-                            }`}
-                          >
-                            {/* Drag handle */}
+                    {/* Container for draggable content */}
+                    <div className="mt-4">
+                      {/* Sample videos section - only show if queue is empty */}
+                      {videoQueue.length === 0 && (
+                        <div className="flex flex-col gap-2">
+                          {sampleVideos.map((video, index) => (
                             <div
-                              {...provided.dragHandleProps}
-                              className="mr-2 cursor-grab active:cursor-grabbing hover:text-gray-300"
+                              key={video.path}
+                              className="flex items-center h-[52px] p-3 bg-[#1e1f25] hover:bg-[#25262b] rounded-lg transition-all duration-200"
                             >
-                              <GripVertical className="w-4 h-4 text-gray-400" />
-                            </div>
-
-                            {/* Video info */}
-                            <div 
-                              className="flex-1 min-w-0 mr-2 cursor-pointer"
-                              onClick={() => handleVideoSelect(video)}
-                            >
-                              <div className="text-white font-medium truncate">
-                                {video.name || video.path.split('/').pop()}
+                              {/* Grip icon for visual consistency */}
+                              <div className="mr-2">
+                                <GripVertical className="w-4 h-4 text-gray-400" />
                               </div>
-                            </div>
 
-                            {/* Remove button */}
-                            <button
-                              onClick={() => removeFromQueue(index)}
-                              className="p-1.5 hover:bg-red-500 rounded transition-colors"
-                              title="Remove from queue"
+                              {/* Video info */}
+                              <div 
+                                className="flex-1 min-w-0 mr-2 cursor-pointer"
+                                onClick={() => loadSampleVideo(video)}
+                              >
+                                <div className="text-white font-medium truncate">
+                                  {video.name}
+                                </div>
+                              </div>
+
+                              {/* Play button */}
+                              <button
+                                onClick={() => loadSampleVideo(video)}
+                                className="p-1.5 hover:bg-blue-500 rounded transition-colors"
+                                title="Play video"
+                              >
+                                <Play className="w-4 h-4 text-white" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Video queue items */}
+                      {videoQueue.map((video, index) => (
+                        <Draggable 
+                          key={video.path} 
+                          draggableId={video.path} 
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={{
+                                ...provided.draggableProps.style,
+                                transform: provided.draggableProps.style?.transform
+                                  ? `translate(0px, ${provided.draggableProps.style.transform.split(',')[1]}`
+                                  : 'translate(0px, 0px)'
+                              }}
+                              className={`flex items-center h-[52px] p-3 mb-2 rounded-lg transition-all duration-200 ${
+                                snapshot.isDragging
+                                  ? 'bg-blue-600 shadow-lg'
+                                  : currentQueueIndex === index
+                                  ? 'bg-[#2c2d31]'
+                                  : 'bg-[#1e1f25] hover:bg-[#25262b]'
+                              }`}
                             >
-                              <X className="w-4 h-4 text-white" />
-                            </button>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+                              {/* Drag handle */}
+                              <div
+                                {...provided.dragHandleProps}
+                                className="mr-2 cursor-grab active:cursor-grabbing hover:text-gray-300"
+                              >
+                                <GripVertical className="w-4 h-4 text-gray-400" />
+                              </div>
+
+                              {/* Video info */}
+                              <div 
+                                className="flex-1 min-w-0 mr-2 cursor-pointer"
+                                onClick={() => handleVideoSelect(video)}
+                              >
+                                <div className="text-white font-medium truncate">
+                                  {video.name || video.path.split('/').pop()}
+                                </div>
+                              </div>
+
+                              {/* Remove button */}
+                              <button
+                                onClick={() => removeFromQueue(index)}
+                                className="p-1.5 hover:bg-red-500 rounded transition-colors"
+                                title="Remove from queue"
+                              >
+                                <X className="w-4 h-4 text-white" />
+                              </button>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
                   </div>
                 )}
               </Droppable>
