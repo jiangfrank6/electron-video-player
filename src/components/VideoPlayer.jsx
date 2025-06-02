@@ -333,40 +333,65 @@ const VideoPlayer = () => {
     setIsPlaying(!isPlaying);
   };
 
+  // Handle progress bar interactions
   const handleProgressMouseDown = (e) => {
+    e.preventDefault(); // Prevent text selection while dragging
     setIsDraggingProgress(true);
     updateVideoProgress(e);
-  };
+    
+    const handleMouseMove = (e) => {
+      if (isDraggingProgress) {
+        updateVideoProgress(e);
+      }
+    };
 
-  const handleProgressMouseMove = (e) => {
-    if (isDraggingProgress) {
-      updateVideoProgress(e);
-    }
-  };
+    const handleMouseUp = () => {
+      setIsDraggingProgress(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
 
-  const handleProgressMouseUp = () => {
-    setIsDraggingProgress(false);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const updateVideoProgress = (e) => {
-    const rect = progressRef.current.getBoundingClientRect();
+    if (!progressBarRef.current || !videoRef.current) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
     const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const newTime = (clickX / rect.width) * duration;
+    const percentage = clickX / rect.width;
+    const newTime = percentage * videoRef.current.duration;
+    
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
+    setProgress(percentage * 100);
+
+    // Keep controls visible while dragging
+    setShowControls(true);
   };
 
-  useEffect(() => {
-    if (isDraggingProgress) {
-      document.addEventListener('mousemove', handleProgressMouseMove);
-      document.addEventListener('mouseup', handleProgressMouseUp);
-    }
+  // Handle progress bar hover for time tooltip
+  const handleProgressBarHover = (e) => {
+    if (!progressBarRef.current || !videoRef.current) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const hoverX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percentage = hoverX / rect.width;
+    const previewTime = percentage * videoRef.current.duration;
+    
+    setTooltipTime(previewTime);
+    setTooltipPosition(hoverX);
+    setShowTimeTooltip(true);
+  };
 
-    return () => {
-      document.removeEventListener('mousemove', handleProgressMouseMove);
-      document.removeEventListener('mouseup', handleProgressMouseUp);
-    };
-  }, [isDraggingProgress]);
+  // Update progress bar position
+  useEffect(() => {
+    if (videoRef.current && duration > 0 && !isDraggingProgress) {
+      const progress = (currentTime / duration) * 100;
+      setProgress(progress);
+    }
+  }, [currentTime, duration, isDraggingProgress]);
 
   const handleVolumeChange = (e) => {
     const rect = volumeRef.current.getBoundingClientRect();
@@ -898,32 +923,31 @@ const VideoPlayer = () => {
     }
   };
 
-  // Update progress bar
+  // Update hover tracking
   useEffect(() => {
-    if (videoRef.current && duration > 0) {
-      const progress = (currentTime / duration) * 100;
-      setProgress(progress);
-    }
-  }, [currentTime, duration]);
+    const container = containerRef.current;
+    if (!container) return;
 
-  const handleProgressBarClick = (e) => {
-    if (!videoRef.current) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const newTime = (clickX / rect.width) * duration;
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
+    const handleMouseEnter = () => {
+      setShowControls(true);
+      setIsHoveringControls(false);
+    };
 
-  const handleProgressBarHover = (e) => {
-    if (!videoRef.current) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const hoverX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const newTime = (hoverX / rect.width) * duration;
-    setTooltipTime(newTime);
-    setTooltipPosition(hoverX);
-    setShowTimeTooltip(true);
-  };
+    const handleMouseLeave = () => {
+      setIsHoveringControls(false);
+      if (isPlaying && !showSettings && !isDraggingProgress) {
+        setShowControls(false);
+      }
+    };
+
+    container.addEventListener('mouseenter', handleMouseEnter);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      container.removeEventListener('mouseenter', handleMouseEnter);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [isPlaying, showSettings, isDraggingProgress]);
 
   // Add time update handler
   const handleTimeUpdate = () => {
@@ -972,32 +996,6 @@ const VideoPlayer = () => {
       }
     };
   }, []);
-
-  // Update hover tracking
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleMouseEnter = () => {
-      setShowControls(true);
-      setIsHoveringControls(false);
-    };
-
-    const handleMouseLeave = () => {
-      setIsHoveringControls(false);
-      if (isPlaying && !showSettings && !isDraggingProgress) {
-        setShowControls(false);
-      }
-    };
-
-    container.addEventListener('mouseenter', handleMouseEnter);
-    container.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      container.removeEventListener('mouseenter', handleMouseEnter);
-      container.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [isPlaying, showSettings, isDraggingProgress]);
 
   return (
     <div className={`${isMiniplayer ? '' : 'min-h-screen'} bg-[#0a0b0e] text-white`}>
@@ -1238,20 +1236,84 @@ const VideoPlayer = () => {
                     >
                       <div className="flex flex-col space-y-2">
                         {/* Progress bar */}
-                        <div
-                          className="relative h-1 bg-white/30 cursor-pointer"
-                          ref={progressBarRef}
-                          onClick={handleProgressBarClick}
-                          onMouseMove={handleProgressBarHover}
-                          onMouseLeave={() => setShowTimeTooltip(false)}
-                        >
-                          <div
-                            className="absolute top-0 left-0 h-full bg-white"
-                            style={{ width: `${progress}%` }}
+                        <div className="relative">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={progress}
+                            className="w-full h-2 bg-white/30 rounded-full cursor-pointer appearance-none hover:h-3 transition-all accent-white
+                              [&::-webkit-slider-thumb]:appearance-none
+                              [&::-webkit-slider-thumb]:w-4
+                              [&::-webkit-slider-thumb]:h-4
+                              [&::-webkit-slider-thumb]:rounded-full
+                              [&::-webkit-slider-thumb]:bg-white
+                              [&::-webkit-slider-thumb]:shadow-md
+                              [&::-webkit-slider-thumb]:cursor-pointer
+                              [&::-webkit-slider-thumb]:transition-transform
+                              [&::-webkit-slider-thumb]:scale-0
+                              hover:[&::-webkit-slider-thumb]:scale-100
+                              [&::-moz-range-thumb]:appearance-none
+                              [&::-moz-range-thumb]:w-4
+                              [&::-moz-range-thumb]:h-4
+                              [&::-moz-range-thumb]:rounded-full
+                              [&::-moz-range-thumb]:bg-white
+                              [&::-moz-range-thumb]:shadow-md
+                              [&::-moz-range-thumb]:cursor-pointer
+                              [&::-moz-range-thumb]:border-0
+                              [&::-moz-range-thumb]:transition-transform
+                              [&::-moz-range-thumb]:scale-0
+                              hover:[&::-moz-range-thumb]:scale-100
+                              [&::-webkit-slider-runnable-track]:rounded-full
+                              [&::-moz-range-track]:rounded-full"
+                            style={{
+                              background: `linear-gradient(to right, white ${progress}%, rgba(255,255,255,0.3) ${progress}%)`
+                            }}
+                            onMouseDown={() => {
+                              // Store current playing state and pause video
+                              if (videoRef.current) {
+                                setIsDraggingProgress(true);
+                                if (!videoRef.current.paused) {
+                                  videoRef.current.pause();
+                                }
+                              }
+                            }}
+                            onMouseUp={() => {
+                              // Resume playing if it was playing before
+                              if (videoRef.current && isPlaying) {
+                                videoRef.current.play();
+                              }
+                              setIsDraggingProgress(false);
+                            }}
+                            onChange={(e) => {
+                              const percentage = parseFloat(e.target.value);
+                              const newTime = (percentage / 100) * videoRef.current.duration;
+                              videoRef.current.currentTime = newTime;
+                              setCurrentTime(newTime);
+                              setProgress(percentage);
+                            }}
+                            onMouseMove={(e) => {
+                              const rect = e.target.getBoundingClientRect();
+                              const percentage = ((e.clientX - rect.left) / rect.width) * 100;
+                              const previewTime = (percentage / 100) * videoRef.current.duration;
+                              setTooltipTime(previewTime);
+                              setTooltipPosition(e.clientX - rect.left);
+                              setShowTimeTooltip(true);
+                            }}
+                            onMouseLeave={() => {
+                              setShowTimeTooltip(false);
+                              // Resume playing if mouse leaves while dragging
+                              if (isDraggingProgress && videoRef.current && isPlaying) {
+                                videoRef.current.play();
+                              }
+                              setIsDraggingProgress(false);
+                            }}
                           />
+                          {/* Time tooltip */}
                           {showTimeTooltip && (
                             <div
-                              className="absolute bottom-6 bg-black/80 text-white text-sm px-2 py-1 rounded transform -translate-x-1/2"
+                              className="absolute -top-8 px-2 py-1 bg-black/80 text-white text-sm rounded transform -translate-x-1/2"
                               style={{ left: `${tooltipPosition}px` }}
                             >
                               {formatTime(tooltipTime)}
