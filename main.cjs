@@ -22,8 +22,23 @@ function createWindow() {
     mainWindow.loadFile('dist/index.html');
   }
 
+  // Handle time synchronization
+  ipcMain.on('sync-time', (event, { time }) => {
+    // Only sync from main to miniplayer
+    if (event.sender === mainWindow?.webContents && miniplayerWindow) {
+      miniplayerWindow.webContents.send('sync-time', { time });
+    }
+  });
+
+  // Handle miniplayer closing state
+  ipcMain.on('miniplayer-closing', (event, { time, isPlaying }) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-from-miniplayer', { time, isPlaying });
+    }
+  });
+
   // Listen for miniplayer toggle
-  ipcMain.on('toggle-miniplayer', (event, { videoTime, videoSrc }) => {
+  ipcMain.on('toggle-miniplayer', (event, { videoTime, videoSrc, isPlaying }) => {
     if (!miniplayerWindow) {
       // Create miniplayer window
       miniplayerWindow = new BrowserWindow({
@@ -45,26 +60,13 @@ function createWindow() {
       miniplayerUrl.searchParams.set('miniplayer', 'true');
       miniplayerUrl.searchParams.set('time', videoTime);
       miniplayerUrl.searchParams.set('videoSrc', encodeURIComponent(videoSrc));
+      miniplayerUrl.searchParams.set('isPlaying', isPlaying);
 
       miniplayerWindow.loadURL(miniplayerUrl.toString());
       miniplayerWindow.setAspectRatio(16/9);
       miniplayerWindow.setMinimumSize(200, 112);
 
-      // Enable window dragging
-      miniplayerWindow.webContents.on('did-finish-load', () => {
-        miniplayerWindow.webContents.executeJavaScript(`
-          document.body.style.webkitAppRegion = 'drag';
-          const video = document.querySelector('video');
-          if (video) video.style.webkitAppRegion = 'no-drag';
-          const controls = document.querySelector('.controls-overlay');
-          if (controls) controls.style.webkitAppRegion = 'no-drag';
-        `);
-      });
-
       miniplayerWindow.on('closed', () => {
-        if (mainWindow) {
-          mainWindow.webContents.send('miniplayer-closed');
-        }
         miniplayerWindow = null;
       });
     } else {
@@ -79,24 +81,6 @@ function createWindow() {
     
     const [x, y] = miniplayerWindow.getPosition();
     miniplayerWindow.setPosition(x + deltaX, y + deltaY);
-  });
-
-  // Handle video source synchronization
-  ipcMain.on('request-video-source', (event) => {
-    mainWindow.webContents.send('request-video-source');
-  });
-
-  ipcMain.on('video-source', (event, source) => {
-    if (miniplayerWindow) {
-      miniplayerWindow.webContents.send('video-source', source);
-    }
-  });
-
-  // Handle time synchronization
-  ipcMain.on('update-main-player-time', (event, time) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('update-time', time);
-    }
   });
 }
 

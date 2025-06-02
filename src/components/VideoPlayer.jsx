@@ -101,65 +101,133 @@ const VideoPlayer = () => {
     const isMiniplayer = params.get('miniplayer') === 'true';
     const startTime = params.get('time');
     const urlVideoSrc = params.get('videoSrc');
+    const shouldPlay = params.get('isPlaying') === 'true';
     
     setIsMiniplayer(isMiniplayer);
     
     if (isMiniplayer && urlVideoSrc) {
       setVideoSrc(decodeURIComponent(urlVideoSrc));
-      if (startTime && videoRef.current) {
-        videoRef.current.currentTime = parseFloat(startTime);
-      }
-
-      // Add drag handlers for miniplayer
-      const { ipcRenderer } = window.require('electron');
       
-      const handleMouseDown = (e) => {
-        // Don't initiate drag if clicking on a button or control
-        if (e.target.closest('button') || e.target.closest('.controls-overlay')) {
-          return;
+      const { ipcRenderer } = window.require('electron');
+
+      // Handle time sync from main window
+      ipcRenderer.on('sync-time', (event, { time }) => {
+        if (videoRef.current && Math.abs(videoRef.current.currentTime - time) > 0.5) {
+          videoRef.current.currentTime = time;
         }
-        
-        setIsDragging(true);
-        setDragStartPos({
-          x: e.screenX,
-          y: e.screenY
-        });
+      });
+
+      // Send state back to main window before closing
+      const handleBeforeUnload = () => {
+        if (videoRef.current) {
+          ipcRenderer.send('miniplayer-closing', {
+            time: videoRef.current.currentTime,
+            isPlaying: !videoRef.current.paused
+          });
+        }
       };
 
-      const handleMouseMove = (e) => {
-        if (!isDragging) return;
-        
-        const deltaX = e.screenX - dragStartPos.x;
-        const deltaY = e.screenY - dragStartPos.y;
-        
-        ipcRenderer.send('move-miniplayer', { deltaX, deltaY });
-        
-        setDragStartPos({
-          x: e.screenX,
-          y: e.screenY
-        });
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      const handleVideoLoad = () => {
+        if (videoRef.current) {
+          if (startTime) {
+            videoRef.current.currentTime = parseFloat(startTime);
+          }
+          if (shouldPlay) {
+            videoRef.current.play().then(() => {
+              setIsPlaying(true);
+            }).catch(console.error);
+          }
+        }
       };
 
-      const handleMouseUp = () => {
-        setIsDragging(false);
-      };
-
-      if (containerRef.current) {
-        containerRef.current.addEventListener('mousedown', handleMouseDown);
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+      if (videoRef.current) {
+        videoRef.current.addEventListener('loadeddata', handleVideoLoad);
       }
 
       return () => {
-        if (containerRef.current) {
-          containerRef.current.removeEventListener('mousedown', handleMouseDown);
+        if (videoRef.current) {
+          videoRef.current.removeEventListener('loadeddata', handleVideoLoad);
         }
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-        ipcRenderer.removeAllListeners('miniplayer-closed');
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        ipcRenderer.removeAllListeners('sync-time');
+      };
+    } else if (!isMiniplayer) {
+      // Main window: handle state updates from miniplayer
+      const { ipcRenderer } = window.require('electron');
+      
+      ipcRenderer.on('update-from-miniplayer', (event, { time, isPlaying }) => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = time;
+          if (isPlaying) {
+            videoRef.current.play().then(() => {
+              setIsPlaying(true);
+            }).catch(console.error);
+          }
+        }
+      });
+
+      // Main window: only sync time occasionally
+      let lastSyncedTime = 0;
+      const syncInterval = setInterval(() => {
+        if (videoRef.current) {
+          const currentTime = videoRef.current.currentTime;
+          if (Math.abs(currentTime - lastSyncedTime) > 0.5) {
+            ipcRenderer.send('sync-time', { time: currentTime });
+            lastSyncedTime = currentTime;
+          }
+        }
+      }, 1000);
+
+      return () => {
+        clearInterval(syncInterval);
+        ipcRenderer.removeAllListeners('update-from-miniplayer');
       };
     }
-  }, [isDragging, dragStartPos]);
+  }, [isMiniplayer]);
+
+  // Sync time between players
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    const handleTimeUpdate = () => {
+      const { ipcRenderer } = window.require('electron');
+      ipcRenderer.send('update-time', videoRef.current.currentTime);
+    };
+
+    videoRef.current.addEventListener('timeupdate', handleTimeUpdate);
+
+    return () => {
+      videoRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [isMiniplayer]);
+
+  useEffect(() => {
+    if (!isMiniplayer) {
+      // Main player: Listen for state updates from miniplayer
+      const { ipcRenderer } = window.require('electron');
+      ipcRenderer.on('update-player-state', (event, { time, isPlaying }) => {
+        if (videoRef.current && Math.abs(videoRef.current.currentTime - time) > 0.5) {
+          videoRef.current.currentTime = time;
+        }
+        if (isPlaying) {
+          videoRef.current.play().then(() => {
+            setIsPlaying(true);
+          }).catch(error => {
+            console.error('Error auto-playing video:', error);
+          });
+        } else {
+          videoRef.current.pause();
+          setIsPlaying(false);
+        }
+      });
+
+      return () => {
+        ipcRenderer.removeAllListeners('update-player-state');
+      };
+    }
+  }, [isMiniplayer]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -242,10 +310,18 @@ const VideoPlayer = () => {
 
   const toggleMiniplayer = () => {
     const { ipcRenderer } = window.require('electron');
-    ipcRenderer.send('toggle-miniplayer', {
-      videoTime: videoRef.current.currentTime,
-      videoSrc: videoSrc
-    });
+    if (videoRef.current) {
+      const wasPlaying = !videoRef.current.paused;
+      if (!isMiniplayer) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+      ipcRenderer.send('toggle-miniplayer', {
+        videoTime: videoRef.current.currentTime,
+        videoSrc: videoSrc,
+        isPlaying: !isMiniplayer && wasPlaying
+      });
+    }
   };
 
   return (
