@@ -72,6 +72,22 @@ function createWindow() {
     return [width, height];
   });
 
+  // Check if window has focus
+  ipcMain.handle('has-window-focus', (event) => {
+    try {
+      // Check which window the event came from
+      if (event.sender === mainWindow?.webContents) {
+        return mainWindow.isFocused();
+      } else if (event.sender === miniplayerWindow?.webContents) {
+        return miniplayerWindow.isFocused();
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking window focus:', error);
+      return false;
+    }
+  });
+
   // Handle window resizing
   ipcMain.on('resize-miniplayer', (event, { width, height }) => {
     try {
@@ -111,7 +127,7 @@ function createWindow() {
         alwaysOnTop: true,
         hasShadow: true,
         level: 'floating',
-        focusable: false,
+        focusable: true,
         transparent: true,
         backgroundColor: '#00000000',
         webPreferences: {
@@ -133,6 +149,7 @@ function createWindow() {
         : `file://${path.join(__dirname, 'dist/index.html')}?miniplayer=true&videoSrc=${encodeURIComponent(videoSrc)}&time=${videoTime}&isPlaying=${isPlaying}`;
 
       miniplayerWindow.loadURL(miniplayerUrl);
+      miniplayerWindow.focus();
 
       miniplayerWindow.on('closed', () => {
         miniplayerWindow = null;
@@ -156,6 +173,37 @@ function createWindow() {
       }
     } catch (error) {
       console.error('Error updating aspect ratio:', error);
+    }
+  });
+
+  // Check if miniplayer exists (synchronous)
+  ipcMain.on('check-miniplayer-exists', (event) => {
+    event.returnValue = miniplayerWindow !== null;
+  });
+
+  // Forward miniplayer time updates to main window
+  ipcMain.on('miniplayer-time-update', (event, data) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('miniplayer-time-update', data);
+    }
+  });
+
+  // Forward miniplayer play state to main window
+  ipcMain.on('miniplayer-play-state', (event, data) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('miniplayer-play-state', data);
+    }
+  });
+
+  // Check if miniplayer exists
+  ipcMain.handle('is-miniplayer-open', () => {
+    return miniplayerWindow !== null;
+  });
+
+  // Focus miniplayer window
+  ipcMain.on('focus-miniplayer', () => {
+    if (miniplayerWindow) {
+      miniplayerWindow.focus();
     }
   });
 }

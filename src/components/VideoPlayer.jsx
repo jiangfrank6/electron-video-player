@@ -59,6 +59,19 @@ const VideoPlayer = () => {
 
     // Add keyboard controls
     const handleKeyPress = (e) => {
+      // For miniplayer, only handle events if it's focused
+      // For main window, only handle events if miniplayer doesn't exist
+      const { ipcRenderer } = window.require('electron');
+      
+      if (isMiniplayer) {
+        // In miniplayer, only handle events if we're focused
+        if (!document.hasFocus()) return;
+      } else {
+        // In main window, check if miniplayer exists
+        const miniplayerExists = ipcRenderer.sendSync('check-miniplayer-exists');
+        if (miniplayerExists) return;
+      }
+
       switch(e.key) {
         case 'ArrowLeft':
           skip(-5);
@@ -79,12 +92,14 @@ const VideoPlayer = () => {
           setIsMuted(lowerVolume === 0);
           break;
         case ' ':
-          e.preventDefault(); // Prevent default spacebar behavior
+          e.preventDefault();
           togglePlay();
           break;
         case 'f':
         case 'F':
-          toggleFullscreen();
+          if (!isMiniplayer) {
+            toggleFullscreen();
+          }
           break;
         case 'm':
         case 'M':
@@ -108,7 +123,37 @@ const VideoPlayer = () => {
       video.removeEventListener('ended', () => setIsPlaying(false));
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [videoSrc, volume, isPlaying, isMuted]);
+  }, [videoSrc, volume, isPlaying, isMuted, isMiniplayer]);
+
+  // Add listener for time updates from miniplayer
+  useEffect(() => {
+    if (!isMiniplayer) {
+      const { ipcRenderer } = window.require('electron');
+      const handleTimeUpdate = (event, { time }) => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = time;
+        }
+      };
+      const handlePlayState = (event, { isPlaying }) => {
+        if (videoRef.current) {
+          if (isPlaying) {
+            videoRef.current.play();
+          } else {
+            videoRef.current.pause();
+          }
+          setIsPlaying(isPlaying);
+        }
+      };
+
+      ipcRenderer.on('miniplayer-time-update', handleTimeUpdate);
+      ipcRenderer.on('miniplayer-play-state', handlePlayState);
+
+      return () => {
+        ipcRenderer.removeListener('miniplayer-time-update', handleTimeUpdate);
+        ipcRenderer.removeListener('miniplayer-play-state', handlePlayState);
+      };
+    }
+  }, [isMiniplayer]);
 
   // Check if we're in miniplayer mode on mount
   useEffect(() => {
@@ -568,6 +613,12 @@ const VideoPlayer = () => {
         className={`${isMiniplayer ? 'w-full h-full bg-black' : 'max-w-6xl mx-auto'} relative ${isFullscreen ? 'fixed inset-0 bg-black z-50' : ''}`}
         style={videoContainerStyle}
         onMouseDown={handleMouseDown}
+        onClick={() => {
+          if (isMiniplayer) {
+            const { ipcRenderer } = window.require('electron');
+            ipcRenderer.send('focus-miniplayer');
+          }
+        }}
       >
         {!isMiniplayer && !isFullscreen && (
           <div className="flex items-center justify-between mb-8">
