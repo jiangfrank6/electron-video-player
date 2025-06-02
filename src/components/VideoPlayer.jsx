@@ -40,18 +40,15 @@ const VideoPlayer = () => {
   const sampleVideos = [
     {
       name: 'Sample Video 1',
-      path: '/videoplayback.mp4',
-      description: 'Original sample video'
+      path: '/videoplayback.mp4'
     },
     {
       name: 'Sample Video 2',
-      path: '/videoplayback2.mp4',
-      description: 'Additional sample video'
+      path: '/videoplayback2.mp4'
     },
     {
       name: 'Sample Video 3',
-      path: '/videoplayback3.mp4',
-      description: 'Additional sample video'
+      path: '/videoplayback3.mp4'
     }
   ];
 
@@ -470,7 +467,6 @@ const VideoPlayer = () => {
     setVideoQueue([{
       name: video.name,
       path: video.path,
-      description: video.description,
       file: null
     }]);
     setCurrentQueueIndex(0);
@@ -1102,26 +1098,21 @@ const VideoPlayer = () => {
                         {sampleVideos.map((video, index) => (
                           <div
                             key={video.path}
-                            className="flex items-center h-[72px] p-4 bg-[#1e1f25] hover:bg-[#25262b] rounded-lg transition-all duration-200"
+                            className="flex items-center h-[52px] p-3 bg-[#1e1f25] hover:bg-[#25262b] rounded-lg transition-all duration-200"
                           >
                             {/* Grip icon for visual consistency */}
-                            <div className="mr-3">
+                            <div className="mr-2">
                               <GripVertical className="w-4 h-4 text-gray-400" />
                             </div>
 
                             {/* Video info */}
                             <div 
-                              className="flex-1 min-w-0 mr-3 cursor-pointer"
+                              className="flex-1 min-w-0 mr-2 cursor-pointer"
                               onClick={() => loadSampleVideo(video)}
                             >
                               <div className="text-white font-medium truncate">
                                 {video.name}
                               </div>
-                              {video.description && (
-                                <div className="text-gray-400 text-sm truncate">
-                                  {video.description}
-                                </div>
-                              )}
                             </div>
 
                             {/* Play button */}
@@ -1148,7 +1139,7 @@ const VideoPlayer = () => {
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`flex items-center h-[72px] p-4 mb-2 rounded-lg transition-all duration-200 ${
+                            className={`flex items-center h-[52px] p-3 mb-2 rounded-lg transition-all duration-200 ${
                               snapshot.isDragging
                                 ? 'bg-blue-600 shadow-lg'
                                 : currentQueueIndex === index
@@ -1159,24 +1150,19 @@ const VideoPlayer = () => {
                             {/* Drag handle */}
                             <div
                               {...provided.dragHandleProps}
-                              className="mr-3 cursor-grab active:cursor-grabbing hover:text-gray-300"
+                              className="mr-2 cursor-grab active:cursor-grabbing hover:text-gray-300"
                             >
                               <GripVertical className="w-4 h-4 text-gray-400" />
                             </div>
 
                             {/* Video info */}
                             <div 
-                              className="flex-1 min-w-0 mr-3 cursor-pointer"
+                              className="flex-1 min-w-0 mr-2 cursor-pointer"
                               onClick={() => handleVideoSelect(video)}
                             >
                               <div className="text-white font-medium truncate">
                                 {video.name || video.path.split('/').pop()}
                               </div>
-                              {video.description && (
-                                <div className="text-gray-400 text-sm truncate">
-                                  {video.description}
-                                </div>
-                              )}
                             </div>
 
                             {/* Remove button */}
