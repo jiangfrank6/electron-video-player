@@ -129,6 +129,11 @@ const VideoPlayer = () => {
             toggleFullscreen();
           }
           break;
+        case 'i':
+        case 'I':
+          e.preventDefault();
+          toggleMiniplayer();
+          break;
         case 'm':
         case 'M':
           e.preventDefault();
