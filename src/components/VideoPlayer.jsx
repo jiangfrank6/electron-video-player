@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X } from 'lucide-react';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -318,32 +318,42 @@ const VideoPlayer = () => {
               
               {isMiniplayer ? (
                 // Miniplayer Controls - Centered simple controls
-                <div className="absolute inset-0 flex items-center justify-center gap-4">
+                <>
+                  {/* Close button */}
                   <button
-                    onClick={() => skip(-5)}
-                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                    onClick={toggleMiniplayer}
+                    className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200 z-10"
                   >
-                    <RotateCcw className="w-5 h-5 text-white" />
+                    <X className="w-4 h-4 text-white" />
                   </button>
 
-                  <button
-                    onClick={togglePlay}
-                    className="p-4 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-8 h-8 text-white" />
-                    ) : (
-                      <Play className="w-8 h-8 text-white ml-1" />
-                    )}
-                  </button>
+                  <div className="absolute inset-0 flex items-center justify-center gap-4">
+                    <button
+                      onClick={() => skip(-5)}
+                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                    >
+                      <RotateCcw className="w-5 h-5 text-white" />
+                    </button>
 
-                  <button
-                    onClick={() => skip(5)}
-                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
-                  >
-                    <RotateCw className="w-5 h-5 text-white" />
-                  </button>
-                </div>
+                    <button
+                      onClick={togglePlay}
+                      className="p-4 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-8 h-8 text-white" />
+                      ) : (
+                        <Play className="w-8 h-8 text-white ml-1" />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => skip(5)}
+                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-200"
+                    >
+                      <RotateCw className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                </>
               ) : (
                 // Main player controls - Keep existing controls
                 <>
