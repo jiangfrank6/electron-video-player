@@ -487,11 +487,50 @@ const VideoPlayer = () => {
     }
   };
 
+  const removeFromQueue = (indexToRemove) => {
+    // If removing currently playing video
+    if (indexToRemove === currentQueueIndex) {
+      if (videoQueue.length === 1) {
+        // If it's the last video, clear everything
+        setVideoSrc('');
+        setCurrentQueueIndex(0);
+        setVideoQueue([]);
+      } else if (indexToRemove === videoQueue.length - 1) {
+        // If removing last video in queue, go to previous video
+        const newIndex = indexToRemove - 1;
+        setCurrentQueueIndex(newIndex);
+        setVideoSrc(videoQueue[newIndex].path);
+      } else {
+        // If removing current video but not last, play next video
+        setVideoSrc(videoQueue[indexToRemove + 1].path);
+      }
+    } else if (indexToRemove < currentQueueIndex) {
+      // If removing video before current, adjust current index
+      setCurrentQueueIndex(currentQueueIndex - 1);
+    }
+
+    // Update queue
+    setVideoQueue(prev => prev.filter((_, index) => index !== indexToRemove));
+
+    // Clean up object URL if it exists
+    if (videoQueue[indexToRemove]?.file) {
+      URL.revokeObjectURL(videoQueue[indexToRemove].path);
+    }
+  };
+
   const handleVideoSelect = (video) => {
     const index = videoQueue.findIndex(v => v.path === video.path);
     if (index !== -1) {
       setCurrentQueueIndex(index);
       setVideoSrc(video.path);
+      // Start playing the selected video
+      if (videoRef.current) {
+        videoRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
+          console.error('Error auto-playing selected video:', error);
+        });
+      }
     }
   };
 
@@ -903,32 +942,23 @@ const VideoPlayer = () => {
 
             {/* Video list */}
             <div className="flex-1 overflow-y-auto px-4">
-              {videoQueue.map((video, index) => (
-                <div
-                  key={video.path}
-                  className={`flex items-center p-4 mb-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                    currentQueueIndex === index
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-[#1e1f25] hover:bg-[#25262b]'
-                  }`}
-                  onClick={() => handleVideoSelect(video)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium truncate mb-1">
-                      {video.name || 'Sample Video'}
-                    </div>
-                    <div className="text-gray-400 text-sm truncate">
-                      {video.path.split('/').pop()}
-                    </div>
-                  </div>
-                  {currentQueueIndex === index && (
-                    <Play className="w-5 h-5 text-white ml-3 flex-shrink-0" />
-                  )}
-                </div>
-              ))}
+              {/* Upload button - Always visible */}
+              <div className="mb-4">
+                <label className="flex items-center justify-center w-full p-3 bg-[#25262b] hover:bg-[#2c2d31] rounded-lg cursor-pointer transition-all duration-200">
+                  <span className="text-white">Add More Videos</span>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
 
-              {!videoSrc && (
-                <div className="p-4 bg-[#1e1f25] rounded-lg">
+              {/* Sample videos section - only show if queue is empty */}
+              {videoQueue.length === 0 && (
+                <div className="p-4 bg-[#1e1f25] rounded-lg mb-4">
                   <div className="flex flex-col gap-3">
                     {sampleVideos.map((video, index) => (
                       <button
@@ -943,19 +973,40 @@ const VideoPlayer = () => {
                         <Play className="w-5 h-5" />
                       </button>
                     ))}
-                    <label className="flex items-center justify-center w-full p-3 bg-[#25262b] hover:bg-[#2c2d31] rounded-lg cursor-pointer transition-all duration-200">
-                      Upload Video Files
-                      <input
-                        type="file"
-                        accept="video/*"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
                   </div>
                 </div>
               )}
+
+              {/* Video queue items */}
+              {videoQueue.map((video, index) => (
+                <div
+                  key={video.path}
+                  className={`flex items-center p-4 mb-2 rounded-lg transition-all duration-200 ${
+                    currentQueueIndex === index
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-[#1e1f25] hover:bg-[#25262b]'
+                  }`}
+                >
+                  <div 
+                    className="flex-1 min-w-0 mr-3 cursor-pointer"
+                    onClick={() => handleVideoSelect(video)}
+                  >
+                    <div className="text-white font-medium truncate mb-1">
+                      {video.name || 'Sample Video'}
+                    </div>
+                    <div className="text-gray-400 text-sm truncate">
+                      {video.path.split('/').pop()}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFromQueue(index)}
+                    className="p-1.5 hover:bg-red-500 rounded transition-colors"
+                    title="Remove from queue"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
