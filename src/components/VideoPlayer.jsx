@@ -30,8 +30,8 @@ const VideoPlayer = () => {
     title: 'bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent',
     button: 'bg-gradient-to-r from-gray-700/80 to-gray-800/80 hover:from-gray-600/90 hover:to-gray-700/90',
     progress: 'bg-gradient-to-r from-white to-gray-300',
-    overlay: 'bg-gradient-to-t from-black/70 via-black/30 to-transparent',
-    miniplayerOverlay: 'bg-gradient-to-t from-black/60 via-black/20 to-transparent',
+    overlay: 'bg-gradient-to-t from-black/30 to-transparent',
+    miniplayerOverlay: 'bg-gradient-to-t from-black/30 to-transparent',
     playerBg: 'bg-black'
   };
 
@@ -343,12 +343,36 @@ const VideoPlayer = () => {
       if (!isMiniplayer) {
         videoRef.current.pause();
         setIsPlaying(false);
+        // Get screen dimensions and set initial position
+        ipcRenderer.invoke('get-screen-dimensions').then((dimensions) => {
+          if (Array.isArray(dimensions)) {
+            const [width, height] = dimensions;
+            // Position in top right with 20px padding from edges
+            const x = width - 320 - 20; // 320px is miniplayer width
+            const y = 20; // 20px from top
+            ipcRenderer.send('toggle-miniplayer', {
+              videoTime: videoRef.current.currentTime,
+              videoSrc: videoSrc,
+              isPlaying: wasPlaying,
+              position: { x, y }
+            });
+          }
+        }).catch(error => {
+          console.error('Error getting screen dimensions:', error);
+          // Fallback: just send without position
+          ipcRenderer.send('toggle-miniplayer', {
+            videoTime: videoRef.current.currentTime,
+            videoSrc: videoSrc,
+            isPlaying: wasPlaying
+          });
+        });
+      } else {
+        ipcRenderer.send('toggle-miniplayer', {
+          videoTime: videoRef.current.currentTime,
+          videoSrc: videoSrc,
+          isPlaying: wasPlaying
+        });
       }
-      ipcRenderer.send('toggle-miniplayer', {
-        videoTime: videoRef.current.currentTime,
-        videoSrc: videoSrc,
-        isPlaying: !isMiniplayer && wasPlaying
-      });
     }
   };
 
@@ -467,8 +491,10 @@ const VideoPlayer = () => {
             
             {/* Controls Overlay */}
             <div className={`absolute inset-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} z-30`}>
-              {/* Semi-transparent gradient overlay for controls */}
-              <div className={`absolute inset-0 ${isMiniplayer ? theme.miniplayerOverlay : theme.overlay}`} />
+              {/* Only show gradient overlay for miniplayer */}
+              {isMiniplayer && (
+                <div className={`absolute inset-0 ${theme.miniplayerOverlay}`} />
+              )}
               
               {isMiniplayer ? (
                 // Miniplayer Controls
