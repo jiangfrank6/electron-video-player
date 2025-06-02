@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X, ArrowLeft } from 'lucide-react';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -430,6 +430,16 @@ const VideoPlayer = () => {
     };
   }, []);
 
+  const handleBackToMenu = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setVideoSrc('');
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  };
+
   return (
     <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
       <div 
@@ -443,6 +453,15 @@ const VideoPlayer = () => {
             <h1 className={`text-4xl font-bold ${theme.title}`}>
               Custom Video Player
             </h1>
+            {videoSrc && (
+              <button
+                onClick={handleBackToMenu}
+                className={`px-4 py-2 ${theme.button} text-white rounded-lg transition-all duration-200 font-medium flex items-center gap-2`}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Menu
+              </button>
+            )}
           </div>
         )}
         
