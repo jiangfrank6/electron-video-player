@@ -18,6 +18,7 @@ const VideoPlayer = () => {
   const [isMiniplayer, setIsMiniplayer] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sample video URL (you can replace with your own)
   const sampleVideo = './videoplayback.mp4';
@@ -288,11 +289,18 @@ const VideoPlayer = () => {
   };
 
   const toggleFullscreen = () => {
-    const container = videoRef.current.parentElement;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+        setShowControls(true); // Show controls when entering fullscreen
+      }).catch(console.error);
     } else {
-      container.requestFullscreen();
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch(console.error);
     }
   };
 
@@ -386,15 +394,27 @@ const VideoPlayer = () => {
     }
   }, [isMiniplayer, isDragging, dragStartPos]);
 
+  // Add fullscreen change event listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   return (
     <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
       <div 
         ref={containerRef}
-        className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'} relative`}
+        className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'} relative ${isFullscreen ? 'fixed inset-0 bg-black z-50' : ''}`}
         style={videoContainerStyle}
         onMouseDown={handleMouseDown}
       >
-        {!isMiniplayer && (
+        {!isMiniplayer && !isFullscreen && (
           <div className="flex items-center justify-between mb-8">
             <h1 className={`text-4xl font-bold ${theme.title}`}>
               Custom Video Player
@@ -402,7 +422,7 @@ const VideoPlayer = () => {
           </div>
         )}
         
-        {!videoSrc && !isMiniplayer && (
+        {!videoSrc && !isMiniplayer && !isFullscreen && (
           <div className={`${theme.card} rounded-xl p-8 mb-8 border border-gray-800/20`}>
             <h2 className="text-xl font-semibold text-white mb-4">Load a Video</h2>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -427,18 +447,18 @@ const VideoPlayer = () => {
 
         {videoSrc && (
           <div 
-            className={`relative overflow-hidden group ${isMiniplayer ? 'w-full h-full' : ''} rounded-lg`}
+            className={`relative overflow-hidden group ${isMiniplayer ? 'w-full h-full' : ''} ${isFullscreen ? 'fixed inset-0 w-screen h-screen bg-black' : ''}`}
             onMouseEnter={() => setShowControls(true)}
-            onMouseLeave={() => setShowControls(false)}
+            onMouseLeave={() => !isFullscreen && setShowControls(false)}
           >
             {/* Video Container */}
-            <div className="relative w-full h-full">
+            <div className={`relative ${isFullscreen ? 'w-screen h-screen' : 'w-full h-full'}`}>
               <video
                 ref={videoRef}
                 src={videoSrc}
                 className={`${
-                  isMiniplayer 
-                    ? 'w-full h-full object-contain bg-black'
+                  isMiniplayer || isFullscreen
+                    ? 'w-full h-full object-contain'
                     : 'w-full aspect-video'
                 }`}
                 onClick={togglePlay}
@@ -637,7 +657,7 @@ const VideoPlayer = () => {
           </div>
         )}
 
-        {!isMiniplayer && videoSrc && (
+        {!isMiniplayer && !isFullscreen && videoSrc && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm text-gray-300 mt-4">
             <div><strong>Space:</strong> Play/Pause</div>
             <div><strong>←/→:</strong> Skip 5s</div>
