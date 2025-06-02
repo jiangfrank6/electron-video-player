@@ -25,6 +25,7 @@ const VideoPlayer = () => {
   const [videoAspectRatio, setVideoAspectRatio] = useState(16/9); // default to 16:9
   const [videoQueue, setVideoQueue] = useState([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
+  const [autoplay, setAutoplay] = useState(true);
 
   // Sample videos
   const sampleVideos = [
@@ -471,6 +472,17 @@ const VideoPlayer = () => {
       const nextIndex = currentQueueIndex + 1;
       setCurrentQueueIndex(nextIndex);
       setVideoSrc(videoQueue[nextIndex].path);
+      
+      // Add a small delay to ensure the video source has been updated
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.play().then(() => {
+            setIsPlaying(true);
+          }).catch(error => {
+            console.error('Error auto-playing next video:', error);
+          });
+        }
+      }, 100);
     }
   };
 
@@ -479,23 +491,31 @@ const VideoPlayer = () => {
       const prevIndex = currentQueueIndex - 1;
       setCurrentQueueIndex(prevIndex);
       setVideoSrc(videoQueue[prevIndex].path);
+      // Start playing the previous video
+      if (videoRef.current) {
+        videoRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
+          console.error('Error auto-playing previous video:', error);
+        });
+      }
     }
   };
 
-  // Add video ended handler
+  // Update video ended handler
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleVideoEnded = () => {
-      if (currentQueueIndex < videoQueue.length - 1) {
+      if (autoplay && currentQueueIndex < videoQueue.length - 1) {
         playNextVideo();
       }
     };
 
     video.addEventListener('ended', handleVideoEnded);
     return () => video.removeEventListener('ended', handleVideoEnded);
-  }, [currentQueueIndex, videoQueue]);
+  }, [currentQueueIndex, videoQueue, autoplay]);
 
   const toggleMiniplayer = () => {
     const { ipcRenderer } = window.require('electron');
@@ -726,6 +746,45 @@ const VideoPlayer = () => {
       ipcRenderer.send('update-dev-server-port', parseInt(port, 10));
     }
   }, []);
+
+  // Add effect to handle video source changes
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc) return;
+
+    const handleLoadedMetadata = () => {
+      if (isPlaying) {
+        video.play().then(() => {
+          // Successfully started playing
+        }).catch(error => {
+          console.error('Error auto-playing video after metadata load:', error);
+        });
+      }
+    };
+
+    const handleLoadedData = () => {
+      if (isPlaying) {
+        video.play().then(() => {
+          // Successfully started playing
+        }).catch(error => {
+          console.error('Error auto-playing video after data load:', error);
+        });
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('loadeddata', handleLoadedData);
+    
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('loadeddata', handleLoadedData);
+    };
+  }, [videoSrc, isPlaying]);
+
+  // Add debug logging for isPlaying state changes
+  useEffect(() => {
+    console.log('isPlaying state changed:', isPlaying);
+  }, [isPlaying]);
 
   return (
     <div className={`${isMiniplayer ? '' : 'min-h-screen'} bg-[#0a0b0e] text-white`}>
@@ -989,20 +1048,45 @@ const VideoPlayer = () => {
 
                             {/* Settings Menu */}
                             {showSettings && (
-                              <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 shadow-lg">
+                              <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 shadow-lg rounded-lg overflow-hidden">
                                 <div className="p-2">
-                                  <div className="text-white text-sm font-medium mb-2">Playback Speed</div>
-                                  {[0.5, 1, 1.5, 2].map((rate) => (
-                                    <button
-                                      key={rate}
-                                      onClick={() => changePlaybackRate(rate)}
-                                      className={`w-full text-left px-3 py-1 text-sm ${
-                                        playbackRate === rate ? 'text-blue-400' : 'text-white'
-                                      } hover:bg-white/10`}
-                                    >
-                                      {rate}x
-                                    </button>
-                                  ))}
+                                  {/* Autoplay Toggle */}
+                                  <div className="px-3 py-2 border-b border-gray-700">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-white text-sm">Autoplay</span>
+                                      <button
+                                        onClick={() => setAutoplay(!autoplay)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                                          autoplay ? 'bg-blue-600' : 'bg-gray-600'
+                                        }`}
+                                      >
+                                        <span
+                                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                                            autoplay ? 'translate-x-6' : 'translate-x-1'
+                                          }`}
+                                        />
+                                      </button>
+                                    </div>
+                                    <p className="text-gray-400 text-xs mt-1">
+                                      Automatically play next video
+                                    </p>
+                                  </div>
+
+                                  {/* Playback Speed */}
+                                  <div className="px-3 py-2">
+                                    <div className="text-white text-sm font-medium mb-2">Playback Speed</div>
+                                    {[0.5, 1, 1.5, 2].map((rate) => (
+                                      <button
+                                        key={rate}
+                                        onClick={() => changePlaybackRate(rate)}
+                                        className={`w-full text-left px-3 py-1 text-sm ${
+                                          playbackRate === rate ? 'text-blue-400' : 'text-white'
+                                        } hover:bg-white/10 rounded`}
+                                      >
+                                        {rate}x
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             )}
