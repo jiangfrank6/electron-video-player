@@ -86,6 +86,12 @@ const VideoPlayer = () => {
           e.preventDefault();
           toggleMute();
           break;
+        case 'Escape':
+          if (isMiniplayer) {
+            e.preventDefault();
+            toggleMiniplayer();
+          }
+          break;
       }
     };
 
