@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon } from 'lucide-react';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -15,6 +15,7 @@ const VideoPlayer = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [videoSrc, setVideoSrc] = useState('');
   const [currentTheme, setCurrentTheme] = useState('ocean');
+  const [isMiniplayer, setIsMiniplayer] = useState(false);
 
   // Sample video URL (you can replace with your own)
   const sampleVideo = './videoplayback.mp4';
@@ -90,6 +91,35 @@ const VideoPlayer = () => {
       document.removeEventListener('keydown', handleKeyPress);
     };
   }, [videoSrc, volume]);
+
+  // Check if we're in miniplayer mode on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isMiniplayer = params.get('miniplayer') === 'true';
+    const startTime = params.get('time');
+    const urlVideoSrc = params.get('videoSrc');
+    
+    setIsMiniplayer(isMiniplayer);
+    
+    if (isMiniplayer && urlVideoSrc) {
+      setVideoSrc(decodeURIComponent(urlVideoSrc));
+      if (startTime && videoRef.current) {
+        videoRef.current.currentTime = parseFloat(startTime);
+      }
+    }
+
+    // Listen for miniplayer closed event
+    const { ipcRenderer } = window.require('electron');
+    ipcRenderer.on('miniplayer-closed', () => {
+      if (videoRef.current) {
+        ipcRenderer.send('update-main-player-time', videoRef.current.currentTime);
+      }
+    });
+
+    return () => {
+      ipcRenderer.removeAllListeners('miniplayer-closed');
+    };
+  }, []);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -170,31 +200,41 @@ const VideoPlayer = () => {
     }
   };
 
+  const toggleMiniplayer = () => {
+    const { ipcRenderer } = window.require('electron');
+    ipcRenderer.send('toggle-miniplayer', {
+      videoTime: videoRef.current.currentTime,
+      videoSrc: videoSrc
+    });
+  };
+
   return (
-    <div className={`min-h-screen ${theme.bg} p-4`}>
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className={`text-4xl font-bold ${theme.title}`}>
-            Custom Video Player
-          </h1>
-          
-          {/* Theme Selector */}
-          <div className="relative">
-            <select
-              value={currentTheme}
-              onChange={(e) => setCurrentTheme(e.target.value)}
-              className="bg-gray-800/70 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {Object.entries(themes).map(([key, theme]) => (
-                <option key={key} value={key} className="bg-gray-800">
-                  {theme.name}
-                </option>
-              ))}
-            </select>
+    <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
+      <div className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'}`}>
+        {!isMiniplayer && (
+          <div className="flex items-center justify-between mb-8">
+            <h1 className={`text-4xl font-bold ${theme.title}`}>
+              Custom Video Player
+            </h1>
+            
+            {/* Theme Selector */}
+            <div className="relative">
+              <select
+                value={currentTheme}
+                onChange={(e) => setCurrentTheme(e.target.value)}
+                className="bg-gray-800/70 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {Object.entries(themes).map(([key, theme]) => (
+                  <option key={key} value={key} className="bg-gray-800">
+                    {theme.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
         
-        {!videoSrc && (
+        {!videoSrc && !isMiniplayer && (
           <div className={`${theme.card} backdrop-blur-sm rounded-xl p-8 mb-8 border border-gray-700`}>
             <h2 className="text-xl font-semibold text-white mb-4">Load a Video</h2>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -219,14 +259,14 @@ const VideoPlayer = () => {
 
         {videoSrc && (
           <div 
-            className="relative bg-black rounded-xl overflow-hidden shadow-2xl group flex items-center justify-center"
+            className={`relative bg-black rounded-xl overflow-hidden shadow-2xl group ${isMiniplayer ? 'w-full h-full' : ''}`}
             onMouseEnter={() => setShowControls(true)}
             onMouseLeave={() => setShowControls(false)}
           >
             <video
               ref={videoRef}
               src={videoSrc}
-              className="w-full aspect-video max-h-screen"
+              className={`${isMiniplayer ? 'w-full h-full' : 'w-full aspect-video'}`}
               onClick={togglePlay}
             />
             
@@ -352,6 +392,17 @@ const VideoPlayer = () => {
                       )}
                     </div>
 
+                    {/* Miniplayer Button */}
+                    {!isMiniplayer && (
+                      <button
+                        onClick={toggleMiniplayer}
+                        className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                        title="Miniplayer"
+                      >
+                        <MinimizeIcon className="w-5 h-5 text-white" />
+                      </button>
+                    )}
+
                     {/* Fullscreen Button */}
                     <button
                       onClick={toggleFullscreen}
@@ -366,12 +417,14 @@ const VideoPlayer = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300">
-          <div><strong>Space:</strong> Play/Pause</div>
-          <div><strong>←/→:</strong> Skip 5s</div>
-          <div><strong>↑/↓:</strong> Volume</div>
-          <div><strong>F:</strong> Fullscreen</div>
-        </div>
+        {!isMiniplayer && videoSrc && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300 mt-4">
+            <div><strong>Space:</strong> Play/Pause</div>
+            <div><strong>←/→:</strong> Skip 5s</div>
+            <div><strong>↑/↓:</strong> Volume</div>
+            <div><strong>F:</strong> Fullscreen</div>
+          </div>
+        )}
       </div>
     </div>
   );
