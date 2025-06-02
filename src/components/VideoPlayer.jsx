@@ -1078,12 +1078,12 @@ const VideoPlayer = () => {
                   <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                    className={`flex-1 overflow-y-auto px-4 ${
+                    className={`flex-1 overflow-y-auto p-4 ${
                       snapshot.isDraggingOver ? 'bg-gray-900/50' : ''
                     }`}
                   >
                     {/* Upload button - Always visible */}
-                    <div className="mb-4 sticky top-0 bg-[#0a0b0e] pt-4">
+                    <div className="mb-4">
                       <label className="flex items-center justify-center w-full p-3 bg-[#25262b] hover:bg-[#2c2d31] rounded-lg cursor-pointer transition-all duration-200">
                         <span className="text-white">Add More Videos</span>
                         <input
@@ -1098,22 +1098,42 @@ const VideoPlayer = () => {
 
                     {/* Sample videos section - only show if queue is empty */}
                     {videoQueue.length === 0 && (
-                      <div className="p-4 bg-[#1e1f25] rounded-lg mb-4">
-                        <div className="flex flex-col gap-3">
-                          {sampleVideos.map((video, index) => (
-                            <button
-                              key={video.path}
+                      <div className="flex flex-col gap-2">
+                        {sampleVideos.map((video, index) => (
+                          <div
+                            key={video.path}
+                            className="flex items-center h-[72px] p-4 bg-[#1e1f25] hover:bg-[#25262b] rounded-lg transition-all duration-200"
+                          >
+                            {/* Grip icon for visual consistency */}
+                            <div className="mr-3">
+                              <GripVertical className="w-4 h-4 text-gray-400" />
+                            </div>
+
+                            {/* Video info */}
+                            <div 
+                              className="flex-1 min-w-0 mr-3 cursor-pointer"
                               onClick={() => loadSampleVideo(video)}
-                              className="flex items-center justify-between w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200"
                             >
-                              <div>
-                                <div className="font-medium">{video.name}</div>
-                                <div className="text-sm text-blue-200">{video.path.split('/').pop()}</div>
+                              <div className="text-white font-medium truncate">
+                                {video.name}
                               </div>
-                              <Play className="w-5 h-5" />
+                              {video.description && (
+                                <div className="text-gray-400 text-sm truncate">
+                                  {video.description}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Play button */}
+                            <button
+                              onClick={() => loadSampleVideo(video)}
+                              className="p-1.5 hover:bg-blue-500 rounded transition-colors"
+                              title="Play video"
+                            >
+                              <Play className="w-4 h-4 text-white" />
                             </button>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -1128,7 +1148,7 @@ const VideoPlayer = () => {
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={`flex items-center p-4 mb-2 rounded-lg transition-all duration-200 ${
+                            className={`flex items-center h-[72px] p-4 mb-2 rounded-lg transition-all duration-200 ${
                               snapshot.isDragging
                                 ? 'bg-blue-600 shadow-lg'
                                 : currentQueueIndex === index
