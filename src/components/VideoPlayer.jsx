@@ -26,8 +26,24 @@ const VideoPlayer = () => {
   const [videoQueue, setVideoQueue] = useState([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
 
-  // Sample video URL (using relative URL from public directory)
-  const sampleVideo = '/videoplayback.mp4';
+  // Sample videos
+  const sampleVideos = [
+    {
+      name: 'Sample Video 1',
+      path: '/videoplayback.mp4',
+      description: 'Original sample video'
+    },
+    {
+      name: 'Sample Video 2',
+      path: '/videoplayback2.mp4',
+      description: 'Additional sample video'
+    },
+    {
+      name: 'Sample Video 3',
+      path: '/videoplayback3.mp4',
+      description: 'Additional sample video'
+    }
+  ];
 
   // Theme configuration
   const theme = {
@@ -381,12 +397,13 @@ const VideoPlayer = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const loadSampleVideo = () => {
-    console.log('Attempting to load sample video:', sampleVideo);
-    setVideoSrc(sampleVideo);
+  const loadSampleVideo = (video) => {
+    console.log('Loading sample video:', video.path);
+    setVideoSrc(video.path);
     setVideoQueue([{
-      name: 'Sample Video',
-      path: sampleVideo,
+      name: video.name,
+      path: video.path,
+      description: video.description,
       file: null
     }]);
     setCurrentQueueIndex(0);
@@ -826,16 +843,19 @@ const VideoPlayer = () => {
               {!videoSrc && (
                 <div className="p-4 bg-[#1e1f25] rounded-lg">
                   <div className="flex flex-col gap-3">
-                    <button
-                      onClick={loadSampleVideo}
-                      className="flex items-center justify-between w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200"
-                    >
-                      <div>
-                        <div className="font-medium">Sample Video</div>
-                        <div className="text-sm text-blue-200">videoplayback.mp4</div>
-                      </div>
-                      <Play className="w-5 h-5" />
-                    </button>
+                    {sampleVideos.map((video, index) => (
+                      <button
+                        key={video.path}
+                        onClick={() => loadSampleVideo(video)}
+                        className="flex items-center justify-between w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200"
+                      >
+                        <div>
+                          <div className="font-medium">{video.name}</div>
+                          <div className="text-sm text-blue-200">{video.path.split('/').pop()}</div>
+                        </div>
+                        <Play className="w-5 h-5" />
+                      </button>
+                    ))}
                     <label className="flex items-center justify-center w-full p-3 bg-[#25262b] hover:bg-[#2c2d31] rounded-lg cursor-pointer transition-all duration-200">
                       Upload Video Files
                       <input
