@@ -5,6 +5,7 @@ const VideoPlayer = () => {
   const videoRef = useRef(null);
   const progressRef = useRef(null);
   const volumeRef = useRef(null);
+  const containerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -16,6 +17,8 @@ const VideoPlayer = () => {
   const [videoSrc, setVideoSrc] = useState('');
   const [currentTheme, setCurrentTheme] = useState('ocean');
   const [isMiniplayer, setIsMiniplayer] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
   // Sample video URL (you can replace with your own)
   const sampleVideo = './videoplayback.mp4';
@@ -106,20 +109,57 @@ const VideoPlayer = () => {
       if (startTime && videoRef.current) {
         videoRef.current.currentTime = parseFloat(startTime);
       }
-    }
 
-    // Listen for miniplayer closed event
-    const { ipcRenderer } = window.require('electron');
-    ipcRenderer.on('miniplayer-closed', () => {
-      if (videoRef.current) {
-        ipcRenderer.send('update-main-player-time', videoRef.current.currentTime);
+      // Add drag handlers for miniplayer
+      const { ipcRenderer } = window.require('electron');
+      
+      const handleMouseDown = (e) => {
+        // Don't initiate drag if clicking on a button or control
+        if (e.target.closest('button') || e.target.closest('.controls-overlay')) {
+          return;
+        }
+        
+        setIsDragging(true);
+        setDragStartPos({
+          x: e.screenX,
+          y: e.screenY
+        });
+      };
+
+      const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        
+        const deltaX = e.screenX - dragStartPos.x;
+        const deltaY = e.screenY - dragStartPos.y;
+        
+        ipcRenderer.send('move-miniplayer', { deltaX, deltaY });
+        
+        setDragStartPos({
+          x: e.screenX,
+          y: e.screenY
+        });
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      if (containerRef.current) {
+        containerRef.current.addEventListener('mousedown', handleMouseDown);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
       }
-    });
 
-    return () => {
-      ipcRenderer.removeAllListeners('miniplayer-closed');
-    };
-  }, []);
+      return () => {
+        if (containerRef.current) {
+          containerRef.current.removeEventListener('mousedown', handleMouseDown);
+        }
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        ipcRenderer.removeAllListeners('miniplayer-closed');
+      };
+    }
+  }, [isDragging, dragStartPos]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -210,7 +250,10 @@ const VideoPlayer = () => {
 
   return (
     <div className={`${isMiniplayer ? 'h-screen' : 'min-h-screen'} ${theme.bg} ${isMiniplayer ? 'p-0' : 'p-4'}`}>
-      <div className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'}`}>
+      <div 
+        ref={containerRef}
+        className={`${isMiniplayer ? 'w-full h-full' : 'max-w-6xl mx-auto'}`}
+      >
         {!isMiniplayer && (
           <div className="flex items-center justify-between mb-8">
             <h1 className={`text-4xl font-bold ${theme.title}`}>

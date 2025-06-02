@@ -73,6 +73,14 @@ function createWindow() {
     }
   });
 
+  // Handle window dragging
+  ipcMain.on('move-miniplayer', (event, { deltaX, deltaY }) => {
+    if (!miniplayerWindow) return;
+    
+    const [x, y] = miniplayerWindow.getPosition();
+    miniplayerWindow.setPosition(x + deltaX, y + deltaY);
+  });
+
   // Handle video source synchronization
   ipcMain.on('request-video-source', (event) => {
     mainWindow.webContents.send('request-video-source');
