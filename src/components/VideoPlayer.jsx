@@ -72,6 +72,7 @@ const VideoPlayer = () => {
           video.volume = lowerVolume;
           break;
         case ' ':
+          e.preventDefault(); // Prevent default spacebar behavior
           togglePlay();
           break;
         case 'f':
