@@ -26,6 +26,7 @@ const VideoPlayer = () => {
   const [videoQueue, setVideoQueue] = useState([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
+  const [isDraggingProgress, setIsDraggingProgress] = useState(false);
 
   // Sample videos
   const sampleVideos = [
@@ -324,13 +325,40 @@ const VideoPlayer = () => {
     setIsPlaying(!isPlaying);
   };
 
-  const handleProgressClick = (e) => {
+  const handleProgressMouseDown = (e) => {
+    setIsDraggingProgress(true);
+    updateVideoProgress(e);
+  };
+
+  const handleProgressMouseMove = (e) => {
+    if (isDraggingProgress) {
+      updateVideoProgress(e);
+    }
+  };
+
+  const handleProgressMouseUp = () => {
+    setIsDraggingProgress(false);
+  };
+
+  const updateVideoProgress = (e) => {
     const rect = progressRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const newTime = (clickX / rect.width) * duration;
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
+
+  useEffect(() => {
+    if (isDraggingProgress) {
+      document.addEventListener('mousemove', handleProgressMouseMove);
+      document.addEventListener('mouseup', handleProgressMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleProgressMouseMove);
+      document.removeEventListener('mouseup', handleProgressMouseUp);
+    };
+  }, [isDraggingProgress]);
 
   const handleVolumeChange = (e) => {
     const rect = volumeRef.current.getBoundingClientRect();
@@ -967,14 +995,29 @@ const VideoPlayer = () => {
                       {/* Progress Bar */}
                       <div
                         ref={progressRef}
-                        className="w-full h-2 bg-white/20 rounded-full mb-4 cursor-pointer hover:bg-white/30 transition-colors"
-                        onClick={handleProgressClick}
+                        className="group relative w-full h-2 bg-white/20 rounded-full mb-4 cursor-pointer hover:bg-white/30 transition-colors"
+                        onMouseDown={handleProgressMouseDown}
                       >
                         <div
                           className={`h-full ${theme.progress} rounded-full relative`}
                           style={{ width: `${(currentTime / duration) * 100}%` }}
                         >
-                          <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg"></div>
+                          <div 
+                            className={`absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg 
+                              ${isDraggingProgress ? 'scale-125' : 'scale-100'} 
+                              transition-transform duration-150
+                              group-hover:scale-125`}
+                          />
+                        </div>
+                        {/* Time tooltip */}
+                        <div 
+                          className="absolute top-0 left-0 transform -translate-y-8 px-2 py-1 bg-black/80 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none"
+                          style={{ 
+                            left: `${(currentTime / duration) * 100}%`,
+                            transform: 'translateX(-50%) translateY(-100%)'
+                          }}
+                        >
+                          {formatTime(currentTime)}
                         </div>
                       </div>
 
