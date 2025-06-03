@@ -7,6 +7,7 @@ import VolumeControl from './VolumeControl';
 import PlaybackSettings from './PlaybackSettings';
 import PlayPauseButton from './PlayPauseButton';
 import SkipButton from './SkipButton';
+import VideoQueue from './VideoQueue';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1097,308 +1098,244 @@ const VideoPlayer = () => {
           />
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd} lockAxis="vertical">
-          <div className="flex h-screen">
-            {/* Left side - Video Queue */}
-            <div className={`w-80 flex flex-col ${theme.bg}`}>
-              <div className="p-4 border-b border-gray-800">
-                <h2 className={`text-xl font-semibold ${theme.title}`}>Video Queue</h2>
-              </div>
-              <Droppable droppableId="video-queue" direction="vertical">
-                {(provided, snapshot) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className={`flex-1 overflow-y-auto p-4 ${
-                      snapshot.isDraggingOver ? 'bg-gray-900/50' : ''
-                    }`}
+        <div className="flex h-screen">
+          {/* Left side - Video Queue */}
+          <VideoQueue
+            videos={videoQueue}
+            currentIndex={currentQueueIndex}
+            onVideoSelect={handleVideoSelect}
+            onVideoRemove={removeFromQueue}
+            onQueueReorder={(sourceIndex, destIndex) => {
+              const items = Array.from(videoQueue);
+              const [reorderedItem] = items.splice(sourceIndex, 1);
+              items.splice(destIndex, 0, reorderedItem);
+              
+              setVideoQueue(items);
+              
+              if (currentQueueIndex === sourceIndex) {
+                setCurrentQueueIndex(destIndex);
+              } else if (
+                currentQueueIndex > sourceIndex && 
+                currentQueueIndex <= destIndex
+              ) {
+                setCurrentQueueIndex(currentQueueIndex - 1);
+              } else if (
+                currentQueueIndex < sourceIndex && 
+                currentQueueIndex >= destIndex
+              ) {
+                setCurrentQueueIndex(currentQueueIndex + 1);
+              }
+            }}
+            onVideoUpload={(files) => {
+              const newVideos = files.map(file => {
+                const isMkv = file.name.toLowerCase().endsWith('.mkv');
+                const videoUrl = URL.createObjectURL(file);
+                
+                // Check if the video format is supported
+                const video = document.createElement('video');
+                video.onloadedmetadata = () => {
+                  if (video.videoWidth === 0) {
+                    console.error(`Unsupported video format: ${file.name}`);
+                    URL.revokeObjectURL(videoUrl);
+                    setVideoQueue(prev => prev.filter(v => v.path !== videoUrl));
+                    const { ipcRenderer } = window.require('electron');
+                    ipcRenderer.send('show-error', {
+                      title: 'Unsupported Format',
+                      message: `The video format of "${file.name}" is not supported by your browser. You may need to convert it to a supported format.`
+                    });
+                  }
+                };
+                video.src = videoUrl;
+
+                return {
+                  name: file.name,
+                  path: videoUrl,
+                  file,
+                  type: isMkv ? 'video/x-matroska' : file.type
+                };
+              });
+
+              setVideoQueue(prev => [...prev, ...newVideos]);
+              if (!videoSrc) {
+                setVideoSrc(newVideos[0].path);
+                setCurrentQueueIndex(videoQueue.length);
+              }
+            }}
+            onSampleVideoSelect={loadSampleVideo}
+            sampleVideos={sampleVideos}
+          />
+
+          {/* Right side - Video Player */}
+          <div className="flex-1 flex flex-col bg-black">
+            <div 
+              ref={containerRef}
+              className="relative flex-1"
+              onMouseMove={handleMouseMove}
+            >
+              {videoSrc ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-contain"
+                    src={videoSrc}
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onEnded={handleVideoEnded}
+                    onClick={togglePlay}
+                  />
+                  
+                  {/* Center controls overlay */}
+                  <div 
+                    className={`absolute inset-0 flex items-center justify-center gap-8 transition-opacity duration-300 ${
+                      showControls ? 'opacity-100' : 'opacity-0'
+                    } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
                   >
-                    {/* Upload button - Always visible */}
-                    <div className="sticky top-0 z-10 -mx-4 -mt-4 px-4 pt-4 pb-4 bg-[#0a0b0e]">
-                      <label className="flex items-center justify-center w-full p-3 bg-[#25262b] hover:bg-[#2c2d31] rounded-lg cursor-pointer transition-all duration-200">
-                        <span className="text-white">Add More Videos</span>
-                        <input
-                          type="file"
-                          accept="video/*,.mkv"
-                          multiple
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-
-                    {/* Container for draggable content */}
-                    <div className="mt-4">
-                      {/* Sample videos section - only show if queue is empty */}
-                      {videoQueue.length === 0 && (
-                        <div className="flex flex-col gap-2">
-                          {sampleVideos.map((video, index) => (
-                            <div
-                              key={video.path}
-                              className="flex items-center h-[52px] p-3 bg-[#1e1f25] hover:bg-[#25262b] rounded-lg transition-all duration-200"
-                            >
-                              {/* Grip icon for visual consistency */}
-                              <div className="mr-2">
-                                <GripVertical className="w-4 h-4 text-gray-400" />
-                              </div>
-
-                              {/* Video info */}
-                              <div 
-                                className="flex-1 min-w-0 mr-2 cursor-pointer"
-                                onClick={() => loadSampleVideo(video)}
-                              >
-                                <div className="text-white font-medium truncate">
-                                  {video.name}
-                                </div>
-                              </div>
-
-                              {/* Play button */}
-                              <button
-                                onClick={() => loadSampleVideo(video)}
-                                className="p-1.5 hover:bg-blue-500 rounded transition-colors"
-                                title="Play video"
-                              >
-                                <Play className="w-4 h-4 text-white" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Video queue items */}
-                      {videoQueue.map((video, index) => (
-                        <Draggable 
-                          key={video.path} 
-                          draggableId={video.path} 
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              style={{
-                                ...provided.draggableProps.style,
-                                transform: provided.draggableProps.style?.transform
-                                  ? `translate(0px, ${provided.draggableProps.style.transform.split(',')[1]}`
-                                  : 'translate(0px, 0px)'
-                              }}
-                              className={`flex items-center h-[52px] p-3 mb-2 rounded-lg transition-all duration-200 ${
-                                snapshot.isDragging
-                                  ? 'bg-blue-600 shadow-lg'
-                                  : currentQueueIndex === index
-                                  ? 'bg-[#2c2d31]'
-                                  : 'bg-[#1e1f25] hover:bg-[#25262b]'
-                              }`}
-                            >
-                              {/* Drag handle */}
-                              <div
-                                {...provided.dragHandleProps}
-                                className="mr-2 cursor-grab active:cursor-grabbing hover:text-gray-300"
-                              >
-                                <GripVertical className="w-4 h-4 text-gray-400" />
-                              </div>
-
-                              {/* Video info */}
-                              <div 
-                                className="flex-1 min-w-0 mr-2 cursor-pointer"
-                                onClick={() => handleVideoSelect(video)}
-                              >
-                                <div className="text-white font-medium truncate">
-                                  {video.name || video.path.split('/').pop()}
-                                </div>
-                              </div>
-
-                              {/* Remove button */}
-                              <button
-                                onClick={() => removeFromQueue(index)}
-                                className="p-1.5 hover:bg-red-500 rounded transition-colors"
-                                title="Remove from queue"
-                              >
-                                <X className="w-4 h-4 text-white" />
-                              </button>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  </div>
-                )}
-              </Droppable>
-            </div>
-
-            {/* Right side - Video Player */}
-            <div className="flex-1 flex flex-col bg-black">
-              <div 
-                ref={containerRef}
-                className="relative flex-1"
-                onMouseMove={handleMouseMove}
-              >
-                {videoSrc ? (
-                  <>
-                    <video
-                      ref={videoRef}
-                      className="w-full h-full object-contain"
-                      src={videoSrc}
-                      onTimeUpdate={handleTimeUpdate}
-                      onLoadedMetadata={handleLoadedMetadata}
-                      onEnded={handleVideoEnded}
-                      onClick={togglePlay}
+                    {/* Rewind 5s */}
+                    <SkipButton
+                      direction="backward"
+                      type="time"
+                      onClick={() => skip(-5)}
+                      size="normal"
                     />
-                    
-                    {/* Center controls overlay */}
-                    <div 
-                      className={`absolute inset-0 flex items-center justify-center gap-8 transition-opacity duration-300 ${
-                        showControls ? 'opacity-100' : 'opacity-0'
-                      } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    >
-                      {/* Rewind 5s */}
-                      <SkipButton
-                        direction="backward"
-                        type="time"
-                        onClick={() => skip(-5)}
-                        size="normal"
-                      />
 
-                      {/* Play/Pause */}
-                      <PlayPauseButton
-                        isPlaying={isPlaying}
-                        onToggle={togglePlay}
-                        size="large"
-                      />
+                    {/* Play/Pause */}
+                    <PlayPauseButton
+                      isPlaying={isPlaying}
+                      onToggle={togglePlay}
+                      size="large"
+                    />
 
-                      {/* Forward 5s */}
-                      <SkipButton
-                        direction="forward"
-                        type="time"
-                        onClick={() => skip(5)}
-                        size="normal"
-                      />
-                    </div>
+                    {/* Forward 5s */}
+                    <SkipButton
+                      direction="forward"
+                      type="time"
+                      onClick={() => skip(5)}
+                      size="normal"
+                    />
+                  </div>
 
-                    {/* Bottom controls */}
-                    <div 
-                      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
-                        showControls ? 'opacity-100' : 'opacity-0'
-                      } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                      onMouseEnter={() => setIsHoveringControls(true)}
-                      onMouseLeave={() => setIsHoveringControls(false)}
-                    >
-                      <div className="flex flex-col space-y-2">
-                        {/* Progress bar */}
-                        <div className="relative">
-                          <ProgressBar
-                            currentTime={currentTime}
-                            duration={duration}
-                            onTimeUpdate={(time) => {
+                  {/* Bottom controls */}
+                  <div 
+                    className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${
+                      showControls ? 'opacity-100' : 'opacity-0'
+                    } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    onMouseEnter={() => setIsHoveringControls(true)}
+                    onMouseLeave={() => setIsHoveringControls(false)}
+                  >
+                    <div className="flex flex-col space-y-2">
+                      {/* Progress bar */}
+                      <div className="relative">
+                        <ProgressBar
+                          currentTime={currentTime}
+                          duration={duration}
+                          onTimeUpdate={(time) => {
+                            if (videoRef.current) {
+                              if (isPlaying) {
+                                videoRef.current.pause();
+                              }
+                              videoRef.current.currentTime = time;
+                              setCurrentTime(time);
+                              if (isPlaying) {
+                                videoRef.current.play();
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* Controls */}
+                      <div className="flex items-center justify-between">
+                        {/* Left side controls */}
+                        <div className="flex items-center space-x-4">
+                          {/* Previous video button */}
+                          <SkipButton
+                            direction="backward"
+                            type="video"
+                            onClick={playPreviousVideo}
+                            size="normal"
+                          />
+
+                          {/* Play/Pause button */}
+                          <PlayPauseButton
+                            isPlaying={isPlaying}
+                            onToggle={togglePlay}
+                            size="small"
+                          />
+
+                          {/* Next video button */}
+                          <SkipButton
+                            direction="forward"
+                            type="video"
+                            onClick={playNextVideo}
+                            size="normal"
+                          />
+
+                          {/* Volume control */}
+                          <VolumeControl
+                            volume={volume}
+                            isMuted={isMuted}
+                            onVolumeChange={(newVolume) => {
+                              setVolume(newVolume);
+                              setIsMuted(newVolume === 0);
                               if (videoRef.current) {
-                                if (isPlaying) {
-                                  videoRef.current.pause();
-                                }
-                                videoRef.current.currentTime = time;
-                                setCurrentTime(time);
-                                if (isPlaying) {
-                                  videoRef.current.play();
-                                }
+                                videoRef.current.volume = newVolume;
                               }
                             }}
+                            onToggleMute={toggleMute}
                           />
+
+                          {/* Time display */}
+                          <TimeDisplay currentTime={currentTime} duration={duration} />
                         </div>
 
-                        {/* Controls */}
-                        <div className="flex items-center justify-between">
-                          {/* Left side controls */}
-                          <div className="flex items-center space-x-4">
-                            {/* Previous video button */}
-                            <SkipButton
-                              direction="backward"
-                              type="video"
-                              onClick={playPreviousVideo}
-                              size="normal"
-                            />
-
-                            {/* Play/Pause button */}
-                            <PlayPauseButton
-                              isPlaying={isPlaying}
-                              onToggle={togglePlay}
-                              size="small"
-                            />
-
-                            {/* Next video button */}
-                            <SkipButton
-                              direction="forward"
-                              type="video"
-                              onClick={playNextVideo}
-                              size="normal"
-                            />
-
-                            {/* Volume control */}
-                            <VolumeControl
-                              volume={volume}
-                              isMuted={isMuted}
-                              onVolumeChange={(newVolume) => {
-                                setVolume(newVolume);
-                                setIsMuted(newVolume === 0);
+                        {/* Right side controls */}
+                        <div className="flex items-center space-x-4">
+                          {/* Settings button */}
+                          <div className="relative">
+                            <PlaybackSettings
+                              playbackRate={playbackRate}
+                              onPlaybackRateChange={(rate) => {
                                 if (videoRef.current) {
-                                  videoRef.current.volume = newVolume;
+                                  videoRef.current.playbackRate = rate;
+                                  setPlaybackRate(rate);
                                 }
                               }}
-                              onToggleMute={toggleMute}
+                              autoplay={autoplay}
+                              onAutoplayChange={setAutoplay}
                             />
-
-                            {/* Time display */}
-                            <TimeDisplay currentTime={currentTime} duration={duration} />
                           </div>
 
-                          {/* Right side controls */}
-                          <div className="flex items-center space-x-4">
-                            {/* Settings button */}
-                            <div className="relative">
-                              <PlaybackSettings
-                                playbackRate={playbackRate}
-                                onPlaybackRateChange={(rate) => {
-                                  if (videoRef.current) {
-                                    videoRef.current.playbackRate = rate;
-                                    setPlaybackRate(rate);
-                                  }
-                                }}
-                                autoplay={autoplay}
-                                onAutoplayChange={setAutoplay}
-                              />
-                            </div>
+                          {/* Miniplayer button */}
+                          <button
+                            onClick={toggleMiniplayer}
+                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                          >
+                            <MinimizeIcon className="w-5 h-5 text-white" />
+                          </button>
 
-                            {/* Miniplayer button */}
-                            <button
-                              onClick={toggleMiniplayer}
-                              className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                            >
-                              <MinimizeIcon className="w-5 h-5 text-white" />
-                            </button>
-
-                            {/* Fullscreen button */}
-                            <button
-                              onClick={toggleFullscreen}
-                              className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                            >
-                              <Maximize className="w-5 h-5 text-white" />
-                            </button>
-                          </div>
+                          {/* Fullscreen button */}
+                          <button
+                            onClick={toggleFullscreen}
+                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                          >
+                            <Maximize className="w-5 h-5 text-white" />
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center">
-                      <p className="text-xl text-gray-400 mb-4">No video selected</p>
-                      <p className="text-gray-500">Select a video from the queue to play</p>
-                    </div>
                   </div>
-                )}
-              </div>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-xl text-gray-400 mb-4">No video selected</p>
+                    <p className="text-gray-500">Select a video from the queue to play</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </DragDropContext>
+        </div>
       )}
     </div>
   );
