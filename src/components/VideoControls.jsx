@@ -7,6 +7,7 @@ import PlaybackSettings from './PlaybackSettings';
 import PlayPauseButton from './PlayPauseButton';
 import SkipButton from './SkipButton';
 import ProgressBar from './ProgressBar';
+import FullscreenButton from './FullscreenButton';
 
 const VideoControls = ({
   showControls,
@@ -117,12 +118,10 @@ const VideoControls = ({
 
             {/* Fullscreen button - Only show in main player */}
             {!isMiniplayer && (
-              <button
+              <FullscreenButton
                 onClick={onToggleFullscreen}
-                className="p-2 hover:bg-white/20 rounded-full transition-colors"
-              >
-                <Maximize className="w-5 h-5 text-white" />
-              </button>
+                size="normal"
+              />
             )}
           </div>
         </div>
