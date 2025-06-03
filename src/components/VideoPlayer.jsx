@@ -8,6 +8,7 @@ import PlaybackSettings from './PlaybackSettings';
 import PlayPauseButton from './PlayPauseButton';
 import SkipButton from './SkipButton';
 import VideoQueue from './VideoQueue';
+import VideoControls from './VideoControls';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1222,107 +1223,42 @@ const VideoPlayer = () => {
                     onMouseEnter={() => setIsHoveringControls(true)}
                     onMouseLeave={() => setIsHoveringControls(false)}
                   >
-                    <div className="flex flex-col space-y-2">
-                      {/* Progress bar */}
-                      <div className="relative">
-                        <ProgressBar
-                          currentTime={currentTime}
-                          duration={duration}
-                          onTimeUpdate={(time) => {
-                            if (videoRef.current) {
-                              if (isPlaying) {
-                                videoRef.current.pause();
-                              }
-                              videoRef.current.currentTime = time;
-                              setCurrentTime(time);
-                              if (isPlaying) {
-                                videoRef.current.play();
-                              }
-                            }
-                          }}
-                        />
-                      </div>
-
-                      {/* Controls */}
-                      <div className="flex items-center justify-between">
-                        {/* Left side controls */}
-                        <div className="flex items-center space-x-4">
-                          {/* Previous video button */}
-                          <SkipButton
-                            direction="backward"
-                            type="video"
-                            onClick={playPreviousVideo}
-                            size="normal"
-                          />
-
-                          {/* Play/Pause button */}
-                          <PlayPauseButton
-                            isPlaying={isPlaying}
-                            onToggle={togglePlay}
-                            size="small"
-                          />
-
-                          {/* Next video button */}
-                          <SkipButton
-                            direction="forward"
-                            type="video"
-                            onClick={playNextVideo}
-                            size="normal"
-                          />
-
-                          {/* Volume control */}
-                          <VolumeControl
-                            volume={volume}
-                            isMuted={isMuted}
-                            onVolumeChange={(newVolume) => {
-                              setVolume(newVolume);
-                              setIsMuted(newVolume === 0);
-                              if (videoRef.current) {
-                                videoRef.current.volume = newVolume;
-                              }
-                            }}
-                            onToggleMute={toggleMute}
-                          />
-
-                          {/* Time display */}
-                          <TimeDisplay currentTime={currentTime} duration={duration} />
-                        </div>
-
-                        {/* Right side controls */}
-                        <div className="flex items-center space-x-4">
-                          {/* Settings button */}
-                          <div className="relative">
-                            <PlaybackSettings
-                              playbackRate={playbackRate}
-                              onPlaybackRateChange={(rate) => {
-                                if (videoRef.current) {
-                                  videoRef.current.playbackRate = rate;
-                                  setPlaybackRate(rate);
-                                }
-                              }}
-                              autoplay={autoplay}
-                              onAutoplayChange={setAutoplay}
-                            />
-                          </div>
-
-                          {/* Miniplayer button */}
-                          <button
-                            onClick={toggleMiniplayer}
-                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                          >
-                            <MinimizeIcon className="w-5 h-5 text-white" />
-                          </button>
-
-                          {/* Fullscreen button */}
-                          <button
-                            onClick={toggleFullscreen}
-                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                          >
-                            <Maximize className="w-5 h-5 text-white" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    <VideoControls
+                      showControls={showControls}
+                      isPlaying={isPlaying}
+                      currentTime={currentTime}
+                      duration={duration}
+                      volume={volume}
+                      isMuted={isMuted}
+                      playbackRate={playbackRate}
+                      autoplay={autoplay}
+                      onPlayPauseClick={togglePlay}
+                      onVolumeChange={handleVolumeChange}
+                      onToggleMute={toggleMute}
+                      onTimeUpdate={(time) => {
+                        if (videoRef.current) {
+                          videoRef.current.currentTime = time;
+                          setCurrentTime(time);
+                        }
+                      }}
+                      onSkipTime={skip}
+                      onPlaybackRateChange={(rate) => {
+                        if (videoRef.current) {
+                          videoRef.current.playbackRate = rate;
+                          setPlaybackRate(rate);
+                        }
+                      }}
+                      onAutoplayChange={setAutoplay}
+                      onToggleMiniplayer={toggleMiniplayer}
+                      onToggleFullscreen={toggleFullscreen}
+                      onNextVideo={playNextVideo}
+                      onPreviousVideo={playPreviousVideo}
+                      hasNext={currentQueueIndex < videoQueue.length - 1}
+                      hasPrevious={currentQueueIndex > 0}
+                      onMouseEnter={() => setIsHoveringControls(true)}
+                      onMouseLeave={() => setIsHoveringControls(false)}
+                      isMiniplayer={isMiniplayer}
+                    />
                   </div>
                 </>
               ) : (
