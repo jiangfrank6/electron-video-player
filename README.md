@@ -49,7 +49,16 @@ cd electron-video-player
 npm install
 ```
 
-3. Start the development server:
+3. Install required packages:
+```bash
+# Install drag and drop functionality
+npm install @hello-pangea/dnd
+
+# Install icon library (if not already installed)
+npm install lucide-react
+```
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
