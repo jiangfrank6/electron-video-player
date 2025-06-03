@@ -3,6 +3,7 @@ import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings,
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import ProgressBar from './ProgressBar';
 import TimeDisplay from './TimeDisplay';
+import VolumeControl from './VolumeControl';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1341,34 +1342,18 @@ const VideoPlayer = () => {
                             </button>
 
                             {/* Volume control */}
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={toggleMute}
-                                className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                              >
-                                {isMuted ? (
-                                  <VolumeX className="w-5 h-5 text-white" />
-                                ) : (
-                                  <Volume2 className="w-5 h-5 text-white" />
-                                )}
-                              </button>
-                              <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.1"
-                                value={isMuted ? 0 : volume}
-                                onChange={(e) => {
-                                  const newVolume = parseFloat(e.target.value);
-                                  setVolume(newVolume);
-                                  setIsMuted(newVolume === 0);
-                                  if (videoRef.current) {
-                                    videoRef.current.volume = newVolume;
-                                  }
-                                }}
-                                className="w-20 accent-white"
-                              />
-                            </div>
+                            <VolumeControl
+                              volume={volume}
+                              isMuted={isMuted}
+                              onVolumeChange={(newVolume) => {
+                                setVolume(newVolume);
+                                setIsMuted(newVolume === 0);
+                                if (videoRef.current) {
+                                  videoRef.current.volume = newVolume;
+                                }
+                              }}
+                              onToggleMute={toggleMute}
+                            />
 
                             {/* Time display */}
                             <TimeDisplay currentTime={currentTime} duration={duration} />
