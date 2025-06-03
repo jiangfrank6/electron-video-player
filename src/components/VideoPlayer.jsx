@@ -9,6 +9,7 @@ import PlayPauseButton from './PlayPauseButton';
 import SkipButton from './SkipButton';
 import VideoQueue from './VideoQueue';
 import VideoControls from './VideoControls';
+import VideoHeader from './VideoHeader';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1055,13 +1056,13 @@ const VideoPlayer = () => {
           <div className={`absolute inset-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} z-30`}>
             <div className={`absolute inset-0 ${theme.miniplayerOverlay}`} />
             
-            {/* Close button */}
-            <button
-              onClick={toggleMiniplayer}
-              className={`absolute top-2 right-2 p-1.5 ${theme.button} backdrop-blur-xl rounded-full z-10 opacity-90 hover:opacity-100 transition-all duration-200`}
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
+            <VideoHeader
+              videoTitle={videoQueue[currentQueueIndex]?.name || videoQueue[currentQueueIndex]?.path.split('/').pop()}
+              isMiniplayer={true}
+              onBackClick={handleBackToMenu}
+              onCloseMiniplayerClick={toggleMiniplayer}
+              showControls={showControls}
+            />
 
             <div className="absolute inset-0 flex items-center justify-center gap-4">
               <button
@@ -1175,6 +1176,12 @@ const VideoPlayer = () => {
             >
               {videoSrc ? (
                 <>
+                  <VideoHeader
+                    videoTitle={videoQueue[currentQueueIndex]?.name || videoQueue[currentQueueIndex]?.path.split('/').pop()}
+                    isMiniplayer={false}
+                    onBackClick={handleBackToMenu}
+                    showControls={showControls}
+                  />
                   <video
                     ref={videoRef}
                     className="w-full h-full object-contain"
