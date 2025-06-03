@@ -5,6 +5,7 @@ import ProgressBar from './ProgressBar';
 import TimeDisplay from './TimeDisplay';
 import VolumeControl from './VolumeControl';
 import PlaybackSettings from './PlaybackSettings';
+import PlayPauseButton from './PlayPauseButton';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1259,16 +1260,11 @@ const VideoPlayer = () => {
                       </button>
 
                       {/* Play/Pause */}
-                      <button
-                        onClick={togglePlay}
-                        className="p-6 bg-black/40 hover:bg-black/60 rounded-full transition-all duration-200 backdrop-blur-sm group"
-                      >
-                        {isPlaying ? (
-                          <Pause className="w-12 h-12 text-white group-hover:scale-110 transition-transform" />
-                        ) : (
-                          <Play className="w-12 h-12 text-white group-hover:scale-110 transition-transform ml-1" />
-                        )}
-                      </button>
+                      <PlayPauseButton
+                        isPlaying={isPlaying}
+                        onToggle={togglePlay}
+                        size="large"
+                      />
 
                       {/* Forward 5s */}
                       <button
@@ -1322,16 +1318,11 @@ const VideoPlayer = () => {
                             </button>
 
                             {/* Play/Pause button */}
-                            <button
-                              onClick={togglePlay}
-                              className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                            >
-                              {isPlaying ? (
-                                <Pause className="w-5 h-5 text-white" />
-                              ) : (
-                                <Play className="w-5 h-5 text-white" />
-                              )}
-                            </button>
+                            <PlayPauseButton
+                              isPlaying={isPlaying}
+                              onToggle={togglePlay}
+                              size="small"
+                            />
 
                             {/* Next video button */}
                             <button
