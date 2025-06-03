@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X, ArrowLeft, SkipBack, SkipForward, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import ProgressBar from './ProgressBar';
+import TimeDisplay from './TimeDisplay';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1370,9 +1371,7 @@ const VideoPlayer = () => {
                             </div>
 
                             {/* Time display */}
-                            <div className="text-white text-sm">
-                              {formatTime(currentTime)} / {formatTime(duration)}
-                            </div>
+                            <TimeDisplay currentTime={currentTime} duration={duration} />
                           </div>
 
                           {/* Right side controls */}
