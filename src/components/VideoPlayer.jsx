@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw, RotateCw, Settings, MinimizeIcon, X, ArrowLeft, SkipBack, SkipForward, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import ProgressBar from './ProgressBar';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1286,88 +1287,22 @@ const VideoPlayer = () => {
                       <div className="flex flex-col space-y-2">
                         {/* Progress bar */}
                         <div className="relative">
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            value={progress}
-                            className="w-full h-2 bg-white/30 rounded-full cursor-pointer appearance-none hover:h-3 transition-all accent-white
-                              [&::-webkit-slider-thumb]:appearance-none
-                              [&::-webkit-slider-thumb]:w-4
-                              [&::-webkit-slider-thumb]:h-4
-                              [&::-webkit-slider-thumb]:rounded-full
-                              [&::-webkit-slider-thumb]:bg-white
-                              [&::-webkit-slider-thumb]:shadow-md
-                              [&::-webkit-slider-thumb]:cursor-pointer
-                              [&::-webkit-slider-thumb]:transition-transform
-                              [&::-webkit-slider-thumb]:scale-0
-                              hover:[&::-webkit-slider-thumb]:scale-100
-                              [&::-moz-range-thumb]:appearance-none
-                              [&::-moz-range-thumb]:w-4
-                              [&::-moz-range-thumb]:h-4
-                              [&::-moz-range-thumb]:rounded-full
-                              [&::-moz-range-thumb]:bg-white
-                              [&::-moz-range-thumb]:shadow-md
-                              [&::-moz-range-thumb]:cursor-pointer
-                              [&::-moz-range-thumb]:border-0
-                              [&::-moz-range-thumb]:transition-transform
-                              [&::-moz-range-thumb]:scale-0
-                              hover:[&::-moz-range-thumb]:scale-100
-                              [&::-webkit-slider-runnable-track]:rounded-full
-                              [&::-moz-range-track]:rounded-full"
-                            style={{
-                              background: `linear-gradient(to right, white ${progress}%, rgba(255,255,255,0.3) ${progress}%)`
-                            }}
-                            onMouseDown={() => {
-                              // Store current playing state and pause video
+                          <ProgressBar
+                            currentTime={currentTime}
+                            duration={duration}
+                            onTimeUpdate={(time) => {
                               if (videoRef.current) {
-                                setIsDraggingProgress(true);
-                                if (!videoRef.current.paused) {
+                                if (isPlaying) {
                                   videoRef.current.pause();
+                                }
+                                videoRef.current.currentTime = time;
+                                setCurrentTime(time);
+                                if (isPlaying) {
+                                  videoRef.current.play();
                                 }
                               }
                             }}
-                            onMouseUp={() => {
-                              // Resume playing if it was playing before
-                              if (videoRef.current && isPlaying) {
-                                videoRef.current.play();
-                              }
-                              setIsDraggingProgress(false);
-                            }}
-                            onChange={(e) => {
-                              const percentage = parseFloat(e.target.value);
-                              const newTime = (percentage / 100) * videoRef.current.duration;
-                              videoRef.current.currentTime = newTime;
-                              setCurrentTime(newTime);
-                              setProgress(percentage);
-                            }}
-                            onMouseMove={(e) => {
-                              const rect = e.target.getBoundingClientRect();
-                              const percentage = ((e.clientX - rect.left) / rect.width) * 100;
-                              const previewTime = (percentage / 100) * videoRef.current.duration;
-                              setTooltipTime(previewTime);
-                              setTooltipPosition(e.clientX - rect.left);
-                              setShowTimeTooltip(true);
-                            }}
-                            onMouseLeave={() => {
-                              setShowTimeTooltip(false);
-                              // Resume playing if mouse leaves while dragging
-                              if (isDraggingProgress && videoRef.current && isPlaying) {
-                                videoRef.current.play();
-                              }
-                              setIsDraggingProgress(false);
-                            }}
                           />
-                          {/* Time tooltip */}
-                          {showTimeTooltip && (
-                            <div
-                              className="absolute -top-8 px-2 py-1 bg-black/80 text-white text-sm rounded transform -translate-x-1/2"
-                              style={{ left: `${tooltipPosition}px` }}
-                            >
-                              {formatTime(tooltipTime)}
-                            </div>
-                          )}
                         </div>
 
                         {/* Controls */}
