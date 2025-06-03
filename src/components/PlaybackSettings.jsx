@@ -1,14 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Settings } from 'lucide-react';
 
 const PlaybackSettings = ({ playbackRate, onPlaybackRateChange, autoplay, onAutoplayChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+  const buttonRef = useRef(null);
   const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close menu if click is outside menu and button
+      if (
+        menuRef.current && 
+        buttonRef.current && 
+        !menuRef.current.contains(event.target) && 
+        !buttonRef.current.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 hover:bg-white/20 rounded-full transition-colors"
       >
@@ -16,7 +41,10 @@ const PlaybackSettings = ({ playbackRate, onPlaybackRateChange, autoplay, onAuto
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-lg p-2 min-w-[180px]">
+        <div
+          ref={menuRef}
+          className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-lg p-2 min-w-[180px]"
+        >
           {/* Autoplay toggle */}
           <div className="px-2 py-2 border-b border-white/10">
             <div className="flex items-center justify-between">
