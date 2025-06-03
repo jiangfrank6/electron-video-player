@@ -6,6 +6,7 @@ import TimeDisplay from './TimeDisplay';
 import VolumeControl from './VolumeControl';
 import PlaybackSettings from './PlaybackSettings';
 import PlayPauseButton from './PlayPauseButton';
+import SkipButton from './SkipButton';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1252,12 +1253,12 @@ const VideoPlayer = () => {
                       } ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
                     >
                       {/* Rewind 5s */}
-                      <button
+                      <SkipButton
+                        direction="backward"
+                        type="time"
                         onClick={() => skip(-5)}
-                        className="p-3 bg-black/40 hover:bg-black/60 rounded-full transition-all duration-200 group"
-                      >
-                        <RotateCcw className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
-                      </button>
+                        size="normal"
+                      />
 
                       {/* Play/Pause */}
                       <PlayPauseButton
@@ -1267,12 +1268,12 @@ const VideoPlayer = () => {
                       />
 
                       {/* Forward 5s */}
-                      <button
+                      <SkipButton
+                        direction="forward"
+                        type="time"
                         onClick={() => skip(5)}
-                        className="p-3 bg-black/40 hover:bg-black/60 rounded-full transition-all duration-200 backdrop-blur-sm group"
-                      >
-                        <RotateCw className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
-                      </button>
+                        size="normal"
+                      />
                     </div>
 
                     {/* Bottom controls */}
@@ -1309,13 +1310,12 @@ const VideoPlayer = () => {
                           {/* Left side controls */}
                           <div className="flex items-center space-x-4">
                             {/* Previous video button */}
-                            <button
+                            <SkipButton
+                              direction="backward"
+                              type="video"
                               onClick={playPreviousVideo}
-                              className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                              disabled={currentQueueIndex === 0}
-                            >
-                              <SkipBack className={`w-5 h-5 ${currentQueueIndex === 0 ? 'text-gray-500' : 'text-white'}`} />
-                            </button>
+                              size="normal"
+                            />
 
                             {/* Play/Pause button */}
                             <PlayPauseButton
@@ -1325,13 +1325,12 @@ const VideoPlayer = () => {
                             />
 
                             {/* Next video button */}
-                            <button
+                            <SkipButton
+                              direction="forward"
+                              type="video"
                               onClick={playNextVideo}
-                              className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                              disabled={currentQueueIndex === videoQueue.length - 1}
-                            >
-                              <SkipForward className={`w-5 h-5 ${currentQueueIndex === videoQueue.length - 1 ? 'text-gray-500' : 'text-white'}`} />
-                            </button>
+                              size="normal"
+                            />
 
                             {/* Volume control */}
                             <VolumeControl
