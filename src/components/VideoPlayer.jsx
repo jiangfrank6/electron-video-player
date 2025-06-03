@@ -4,6 +4,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import ProgressBar from './ProgressBar';
 import TimeDisplay from './TimeDisplay';
 import VolumeControl from './VolumeControl';
+import PlaybackSettings from './PlaybackSettings';
 
 const VideoPlayer = () => {
   const videoRef = useRef(null);
@@ -1363,54 +1364,17 @@ const VideoPlayer = () => {
                           <div className="flex items-center space-x-4">
                             {/* Settings button */}
                             <div className="relative">
-                              <button
-                                onClick={() => setShowSettings(!showSettings)}
-                                className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                              >
-                                <Settings className="w-5 h-5 text-white" />
-                              </button>
-
-                              {/* Settings menu */}
-                              {showSettings && (
-                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 shadow-lg rounded-lg overflow-hidden">
-                                  <div className="p-2">
-                                    {/* Autoplay toggle */}
-                                    <div className="px-3 py-2 border-b border-gray-700">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-white text-sm">Autoplay</span>
-                                        <button
-                                          onClick={() => setAutoplay(!autoplay)}
-                                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out ${
-                                            autoplay ? 'bg-blue-600' : 'bg-gray-600'
-                                          }`}
-                                        >
-                                          <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
-                                              autoplay ? 'translate-x-6' : 'translate-x-1'
-                                            }`}
-                                          />
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Playback speed */}
-                                    <div className="px-3 py-2">
-                                      <div className="text-white text-sm mb-2">Playback Speed</div>
-                                      {[0.5, 1, 1.5, 2].map((rate) => (
-                                        <button
-                                          key={rate}
-                                          onClick={() => changePlaybackRate(rate)}
-                                          className={`w-full text-left px-3 py-1 text-sm rounded ${
-                                            playbackRate === rate ? 'text-blue-400 bg-white/10' : 'text-white hover:bg-white/10'
-                                          }`}
-                                        >
-                                          {rate}x
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                              <PlaybackSettings
+                                playbackRate={playbackRate}
+                                onPlaybackRateChange={(rate) => {
+                                  if (videoRef.current) {
+                                    videoRef.current.playbackRate = rate;
+                                    setPlaybackRate(rate);
+                                  }
+                                }}
+                                autoplay={autoplay}
+                                onAutoplayChange={setAutoplay}
+                              />
                             </div>
 
                             {/* Miniplayer button */}
