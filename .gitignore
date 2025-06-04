@@ -30,4 +30,29 @@ yarn-error.log*
 *.sw?
 
 # Electron specific
-out/ 
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Extracted subtitles and logs
+extracted_subtitles/
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db 
