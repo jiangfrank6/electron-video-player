@@ -541,6 +541,8 @@ const VideoPlayer = () => {
               message: `The video format of "${file.name}" is not supported by your browser. You may need to convert it to a supported format.`
             });
           }
+          // Clean up the temporary video element
+          video.remove();
         };
         video.src = videoUrl;
 
@@ -774,24 +776,53 @@ const VideoPlayer = () => {
     setDuration(0);
   };
 
-  // Add video metadata handler
+  // Add loaded metadata handler
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current) return;
+    
+    // For MKV files, we need to ensure we're getting the correct duration
+    const video = videoRef.current;
+    const isMkv = video.src.toLowerCase().endsWith('.mkv');
+    
+    if (isMkv) {
+      // Force a duration update for MKV files
+      video.currentTime = 0;
+      const checkDuration = () => {
+        if (video.duration && video.duration !== Infinity) {
+          setDuration(video.duration);
+          video.removeEventListener('timeupdate', checkDuration);
+        }
+      };
+      video.addEventListener('timeupdate', checkDuration);
+    } else {
+      setDuration(video.duration);
+    }
+    
+    // Set video aspect ratio
+    const aspectRatio = video.videoWidth / video.videoHeight;
+    setVideoAspectRatio(aspectRatio);
+    
+    // If in miniplayer, send aspect ratio to main process
+    if (isMiniplayer) {
+      const { ipcRenderer } = window.require('electron');
+      ipcRenderer.send('update-aspect-ratio', { aspectRatio });
+    }
+  };
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleLoadedMetadata = () => {
-      const aspectRatio = video.videoWidth / video.videoHeight;
-      setVideoAspectRatio(aspectRatio);
-      
-      // Send aspect ratio to main process
-      if (isMiniplayer) {
-        const { ipcRenderer } = window.require('electron');
-        ipcRenderer.send('update-aspect-ratio', { aspectRatio });
-      }
-    };
-
+    const updateTime = () => setCurrentTime(video.currentTime);
+    video.addEventListener('timeupdate', updateTime);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    return () => video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('ended', () => setIsPlaying(false));
+
+    return () => {
+      video.removeEventListener('timeupdate', updateTime);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('ended', () => setIsPlaying(false));
+    };
   }, [videoSrc, isMiniplayer]);
 
   // Add resize handlers
@@ -1001,22 +1032,6 @@ const VideoPlayer = () => {
         time: videoRef.current.currentTime,
         isPlaying: !videoRef.current.paused
       });
-    }
-  };
-
-  // Add loaded metadata handler
-  const handleLoadedMetadata = () => {
-    if (!videoRef.current) return;
-    setDuration(videoRef.current.duration);
-    
-    // Set video aspect ratio
-    const aspectRatio = videoRef.current.videoWidth / videoRef.current.videoHeight;
-    setVideoAspectRatio(aspectRatio);
-    
-    // If in miniplayer, send aspect ratio to main process
-    if (isMiniplayer) {
-      const { ipcRenderer } = window.require('electron');
-      ipcRenderer.send('update-aspect-ratio', { aspectRatio });
     }
   };
 
