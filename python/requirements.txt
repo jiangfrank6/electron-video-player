@@ -1,0 +1,2 @@
+# No additional Python packages required - uses built-in libraries
+# Requires ffmpeg and ffprobe to be installed on the system 

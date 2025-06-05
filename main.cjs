@@ -1,6 +1,8 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Menu, dialog } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
 const isDev = process.env.NODE_ENV === 'development';
+require('@electron/remote/main').initialize();
 
 let mainWindow = null;
 let miniplayerWindow = null;
@@ -9,6 +11,43 @@ let devServerPort = 5173;
 // Track the dev server port
 ipcMain.on('update-dev-server-port', (event, port) => {
   devServerPort = port;
+});
+
+// Subtitle extraction IPC handler
+ipcMain.handle('extract-subtitles', async (event, filePath) => {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(__dirname, 'python', 'test_subtitle_extraction.py');
+    const pythonProcess = spawn('python3', [scriptPath, filePath]);
+
+    let stdout = '';
+    let stderr = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+      console.log('Python stdout:', data.toString());
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error('Python stderr:', data.toString());
+    });
+
+    pythonProcess.on('close', (code) => {
+      console.log('Python process exited with code:', code);
+      console.log('STDOUT:', stdout);
+      console.log('STDERR:', stderr);
+      if (code === 0) {
+        resolve({ success: true, output: stdout });
+      } else {
+        resolve({ success: false, error: stderr || `Exited with code ${code}` });
+      }
+    });
+
+    pythonProcess.on('error', (err) => {
+      console.error('Failed to start Python process:', err);
+      resolve({ success: false, error: err.message });
+    });
+  });
 });
 
 function createWindow() {

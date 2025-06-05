@@ -44,6 +44,7 @@ const VideoPlayer = () => {
   const progressBarRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
   const [isHoveringControls, setIsHoveringControls] = useState(false);
+  const [subtitleResult, setSubtitleResult] = useState(null);
 
   // Sample videos
   const sampleVideos = [
@@ -1036,8 +1037,29 @@ const VideoPlayer = () => {
     };
   }, []);
 
+  // TEMPORARY: Test subtitle extraction button handler
+  const handleTestExtractSubtitles = async () => {
+    const { ipcRenderer } = window.require('electron');
+    const result = await ipcRenderer.invoke('extract-subtitles');
+    setSubtitleResult(result);
+    alert(JSON.stringify(result, null, 2));
+  };
+
   return (
     <div className={`${isMiniplayer ? '' : 'min-h-screen'} bg-[#0a0b0e] text-white`}>
+      {/* TEMPORARY TEST BUTTON */}
+      <button
+        onClick={handleTestExtractSubtitles}
+        style={{ zIndex: 9999, position: 'absolute', top: 10, left: 10, background: 'red', color: 'white', padding: 8, borderRadius: 4 }}
+      >
+        Test Subtitle Extraction
+      </button>
+      {/* Optionally show result */}
+      {subtitleResult && (
+        <pre style={{ color: 'white', background: 'black', padding: 10, position: 'absolute', top: 50, left: 10, zIndex: 9999 }}>
+          {JSON.stringify(subtitleResult, null, 2)}
+        </pre>
+      )}
       {isMiniplayer ? (
         // Miniplayer view - only show video and minimal controls
         <div 
