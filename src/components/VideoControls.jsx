@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Maximize, MinimizeIcon } from 'lucide-react';
+import { Maximize, MinimizeIcon, Subtitles } from 'lucide-react';
 import TimeDisplay from './TimeDisplay';
 import VolumeControl from './VolumeControl';
 import PlaybackSettings from './PlaybackSettings';
@@ -34,7 +34,9 @@ const VideoControls = ({
   hasPrevious,
   onMouseEnter,
   onMouseLeave,
-  isMiniplayer = false
+  isMiniplayer = false,
+  onSubtitleClick,
+  hasSubtitles = false
 }) => {
   return (
     <div 
@@ -99,6 +101,17 @@ const VideoControls = ({
 
           {/* Right side controls */}
           <div className="flex items-center space-x-4">
+            {/* Subtitle button */}
+            {hasSubtitles && (
+              <button
+                onClick={onSubtitleClick}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                title="Subtitle Settings"
+              >
+                <Subtitles className="w-5 h-5 text-white" />
+              </button>
+            )}
+
             {/* Settings button */}
             <div className="relative">
               <PlaybackSettings
@@ -154,7 +167,9 @@ VideoControls.propTypes = {
   hasPrevious: PropTypes.bool.isRequired,
   onMouseEnter: PropTypes.func.isRequired,
   onMouseLeave: PropTypes.func.isRequired,
-  isMiniplayer: PropTypes.bool
+  isMiniplayer: PropTypes.bool,
+  onSubtitleClick: PropTypes.func,
+  hasSubtitles: PropTypes.bool
 };
 
 export default VideoControls; 
