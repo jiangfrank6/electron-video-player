@@ -1236,9 +1236,24 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
               }
             }}
             onVideoUpload={(files) => {
-              const newVideos = files.map(file => {
+              const newVideos = Array.from(files).map(fileObj => {
+                // Handle both direct File objects and wrapped File objects
+                const file = fileObj.file || fileObj;
+                
+                if (!(file instanceof File)) {
+                  console.error('Invalid file object:', fileObj);
+                  return null;
+                }
+
                 const isMkv = file.name.toLowerCase().endsWith('.mkv');
-                const videoUrl = URL.createObjectURL(file);
+                let videoUrl;
+                
+                try {
+                  videoUrl = URL.createObjectURL(file);
+                } catch (error) {
+                  console.error('Error creating object URL:', error);
+                  return null;
+                }
                 
                 // Check if the video format is supported
                 const video = document.createElement('video');
@@ -1260,14 +1275,17 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
                   name: file.name,
                   path: videoUrl,
                   file,
-                  type: isMkv ? 'video/x-matroska' : file.type
+                  type: isMkv ? 'video/x-matroska' : file.type,
+                  subtitles: fileObj.subtitles || []
                 };
-              });
+              }).filter(Boolean); // Remove any null entries from failed processing
 
-              setVideoQueue(prev => [...prev, ...newVideos]);
-              if (!videoSrc) {
-                setVideoSrc(newVideos[0].path);
-                setCurrentQueueIndex(videoQueue.length);
+              if (newVideos.length > 0) {
+                setVideoQueue(prev => [...prev, ...newVideos]);
+                if (!videoSrc) {
+                  setVideoSrc(newVideos[0].path);
+                  setCurrentQueueIndex(videoQueue.length);
+                }
               }
             }}
             onSampleVideoSelect={loadSampleVideo}
