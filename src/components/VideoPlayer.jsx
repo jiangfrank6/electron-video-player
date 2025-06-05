@@ -1073,30 +1073,81 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
     }
   };
 
-  const handleSubtitleSelect = (subtitle) => {
+  const handleSubtitleSelect = async (subtitle) => {
+    console.log('Subtitle selected:', subtitle);
     setSelectedSubtitle(subtitle);
     setShowSubtitleModal(false);
 
     if (videoRef.current) {
       // Remove existing subtitle tracks
-      while (videoRef.current.firstChild) {
-        if (videoRef.current.firstChild.tagName === 'TRACK') {
-          videoRef.current.removeChild(videoRef.current.firstChild);
-        }
+      const tracks = videoRef.current.getElementsByTagName('track');
+      console.log('Removing existing tracks:', tracks.length);
+      while (tracks.length > 0) {
+        tracks[0].parentNode.removeChild(tracks[0]);
       }
 
       // Add new subtitle track if selected
       if (subtitle) {
-        const track = document.createElement('track');
-        track.kind = 'subtitles';
-        track.src = subtitle.path;
-        track.label = subtitle.language;
-        track.srclang = subtitle.language;
-        if (subtitle.title) {
-          track.label += ` - ${subtitle.title}`;
+        try {
+          console.log('Reading subtitle file:', subtitle.path);
+          const { ipcRenderer } = window.require('electron');
+          const subtitleContent = await ipcRenderer.invoke('read-subtitle-file', subtitle.path);
+          
+          if (!subtitleContent) {
+            throw new Error('Failed to read subtitle file');
+          }
+
+          // Create a blob from the subtitle content
+          const blob = new Blob([subtitleContent], { type: 'text/vtt' });
+          const subtitleUrl = URL.createObjectURL(blob);
+          console.log('Created subtitle blob URL:', subtitleUrl);
+
+          const track = document.createElement('track');
+          track.kind = 'subtitles';
+          track.src = subtitleUrl;
+          track.label = subtitle.language;
+          track.srclang = subtitle.language;
+          if (subtitle.title) {
+            track.label += ` - ${subtitle.title}`;
+          }
+          track.default = true;
+
+          // Add error handling for track loading
+          track.addEventListener('error', (e) => {
+            console.error('Error loading subtitle track:', e);
+            URL.revokeObjectURL(subtitleUrl);
+            const { ipcRenderer } = window.require('electron');
+            ipcRenderer.send('show-error', {
+              title: 'Subtitle Loading Error',
+              message: `Failed to load subtitle track: ${e.message}`
+            });
+          });
+
+          track.addEventListener('load', () => {
+            console.log('Subtitle track loaded successfully');
+            if (track.track) {
+              console.log('Setting track mode to showing');
+              track.track.mode = 'showing';
+            } else {
+              console.error('Track object not available after load');
+            }
+          });
+
+          videoRef.current.appendChild(track);
+          console.log('Track element added to video');
+
+          // Clean up the blob URL when the video is unloaded
+          videoRef.current.addEventListener('unload', () => {
+            URL.revokeObjectURL(subtitleUrl);
+          }, { once: true });
+        } catch (error) {
+          console.error('Error processing subtitle:', error);
+          const { ipcRenderer } = window.require('electron');
+          ipcRenderer.send('show-error', {
+            title: 'Subtitle Error',
+            message: `Failed to process subtitle: ${error.message}`
+          });
         }
-        videoRef.current.appendChild(track);
-        track.track.mode = 'showing';
       }
     }
   };
@@ -1147,7 +1198,36 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
             src={videoSrc}
             className="w-full h-full object-contain"
             onClick={togglePlay}
-          />
+            onError={(e) => {
+              console.error('Video error:', e);
+              const { ipcRenderer } = window.require('electron');
+              ipcRenderer.send('show-error', {
+                title: 'Video Error',
+                message: `Error loading video: ${e.message}`
+              });
+            }}
+          >
+            {selectedSubtitle && (
+              <track
+                kind="subtitles"
+                src={selectedSubtitle.path}
+                label={selectedSubtitle.language}
+                srcLang={selectedSubtitle.language}
+                default
+                onError={(e) => {
+                  console.error('Track error:', e);
+                  const { ipcRenderer } = window.require('electron');
+                  ipcRenderer.send('show-error', {
+                    title: 'Subtitle Error',
+                    message: `Error loading subtitle: ${e.message}`
+                  });
+                }}
+                onLoad={() => {
+                  console.log('Track loaded in JSX');
+                }}
+              />
+            )}
+          </video>
           {/* Miniplayer Controls */}
           <div className={`absolute inset-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} z-30`}>
             <div className={`absolute inset-0 ${theme.miniplayerOverlay}`} />
@@ -1304,7 +1384,37 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
                     onLoadedMetadata={handleLoadedMetadata}
                     onEnded={handleVideoEnded}
                     onClick={togglePlay}
-                  />
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Video error:', e);
+                      const { ipcRenderer } = window.require('electron');
+                      ipcRenderer.send('show-error', {
+                        title: 'Video Error',
+                        message: `Error loading video: ${e.message}`
+                      });
+                    }}
+                  >
+                    {selectedSubtitle && (
+                      <track
+                        kind="subtitles"
+                        src={selectedSubtitle.path}
+                        label={selectedSubtitle.language}
+                        srcLang={selectedSubtitle.language}
+                        default
+                        onError={(e) => {
+                          console.error('Track error:', e);
+                          const { ipcRenderer } = window.require('electron');
+                          ipcRenderer.send('show-error', {
+                            title: 'Subtitle Error',
+                            message: `Error loading subtitle: ${e.message}`
+                          });
+                        }}
+                        onLoad={() => {
+                          console.log('Track loaded in JSX');
+                        }}
+                      />
+                    )}
+                  </video>
                   
                   {/* Center controls overlay */}
                   <div 

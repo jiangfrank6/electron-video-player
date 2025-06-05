@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, screen, Menu, dialog } = require('electron'
 const path = require('path');
 const { spawn } = require('child_process');
 const isDev = process.env.NODE_ENV === 'development';
+const fs = require('fs').promises;
+const fsSync = require('fs');
 require('@electron/remote/main').initialize();
 
 let mainWindow = null;
@@ -17,147 +19,113 @@ ipcMain.on('update-dev-server-port', (event, port) => {
 const tempSubtitleDirs = new Set();
 const subtitleContents = new Map();
 
-// Subtitle extraction IPC handler
+// Extract subtitles from MKV file
 ipcMain.handle('extract-subtitles', async (event, filePath) => {
-  return new Promise((resolve, reject) => {
-    const scriptPath = path.join(__dirname, 'python', 'test_subtitle_extraction.py');
-    const pythonProcess = spawn('python3', [scriptPath, filePath]);
+  try {
+    const tempDir = path.join(app.getPath('temp'), 'subtitle_extraction_' + Math.random().toString(36).substring(7));
+    await fs.mkdir(tempDir, { recursive: true });
+    
+    const outputDir = path.join(tempDir, 'output');
+    await fs.mkdir(outputDir, { recursive: true });
+    
+    // First, get the subtitle stream information
+    const ffprobe = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_streams',
+      '-select_streams', 's',
+      filePath
+    ]);
 
-    let stdout = '';
-    let stderr = '';
+    let probeOutput = '';
+    ffprobe.stdout.on('data', (data) => {
+      probeOutput += data.toString();
+    });
 
-    pythonProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      stdout += output;
-      console.log('Python stdout:', output);
-      
-      // Check for temporary directory path
-      const tempDirMatch = output.match(/TEMP_DIR:(.+)/);
-      if (tempDirMatch) {
-        const tempDir = tempDirMatch[1].trim();
-        tempSubtitleDirs.add(tempDir);
-      }
-
-      // Check for results
-      const resultsMatch = output.match(/RESULTS:(.+)/);
-      if (resultsMatch) {
-        try {
-          const results = JSON.parse(resultsMatch[1]);
-          // Store subtitle contents
-          results.forEach(result => {
-            if (result.status === 'success' && result.contents) {
-              subtitleContents.set(result.output_file, result.contents);
-            }
-          });
-        } catch (error) {
-          console.error('Error parsing subtitle results:', error);
+    const streams = await new Promise((resolve, reject) => {
+      ffprobe.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error('Failed to probe subtitle streams'));
+          return;
         }
-      }
-    });
-
-    pythonProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
-      console.error('Python stderr:', data.toString());
-    });
-
-    pythonProcess.on('close', (code) => {
-      console.log('Python process exited with code:', code);
-      if (code === 0) {
         try {
-          // Parse the output directory from the Python script's output
-          const tempDirMatch = stdout.match(/TEMP_DIR:(.+)/);
-          if (!tempDirMatch) {
-            resolve({ success: false, error: 'No temporary directory found in output' });
+          const data = JSON.parse(probeOutput);
+          resolve(data.streams || []);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    // Extract each subtitle stream separately
+    const tracks = [];
+    for (const stream of streams) {
+      const index = stream.index;
+      const language = stream.tags?.language || 'unknown';
+      const title = stream.tags?.title || 'No title';
+      const outputFile = path.join(outputDir, `track_${index}.vtt`);
+
+      const ffmpeg = spawn('ffmpeg', [
+        '-i', filePath,
+        '-map', `0:${index}`,
+        '-c:s', 'webvtt',
+        outputFile
+      ]);
+
+      await new Promise((resolve, reject) => {
+        let errorOutput = '';
+        ffmpeg.stderr.on('data', (data) => {
+          errorOutput += data.toString();
+        });
+
+        ffmpeg.on('close', (code) => {
+          if (code !== 0) {
+            console.error('FFmpeg error:', errorOutput);
+            reject(new Error(`Failed to extract subtitle stream ${index}`));
             return;
           }
-          
-          const tempDir = tempDirMatch[1].trim();
-          const summaryFile = path.join(tempDir, 'extraction_summary.txt');
-          
-          // Read the summary file to get the extraction results
-          const fs = require('fs');
-          if (fs.existsSync(summaryFile)) {
-            const summary = fs.readFileSync(summaryFile, 'utf8');
-            const tracks = [];
-            
-            // Parse the summary file to extract track information
-            const lines = summary.split('\n');
-            let currentTrack = null;
-            
-            for (const line of lines) {
-              if (line.startsWith('Stream #')) {
-                if (currentTrack) {
-                  tracks.push(currentTrack);
-                }
-                currentTrack = {
-                  stream_index: parseInt(line.match(/Stream #(\d+)/)[1]),
-                  language: 'unknown',
-                  title: 'No title',
-                  output_file: null,
-                  contents: null
-                };
-              } else if (line.includes('Language:')) {
-                currentTrack.language = line.split('Language:')[1].trim();
-              } else if (line.includes('Title:')) {
-                currentTrack.title = line.split('Title:')[1].trim();
-              } else if (line.includes('Output File:')) {
-                const filename = line.split('Output File:')[1].trim();
-                const outputFile = path.join(tempDir, filename);
-                currentTrack.output_file = outputFile;
-                // Add contents if available
-                if (subtitleContents.has(outputFile)) {
-                  currentTrack.contents = subtitleContents.get(outputFile);
-                }
-              }
-            }
-            
-            if (currentTrack) {
-              tracks.push(currentTrack);
-            }
+          resolve();
+        });
+      });
 
-            // Get the results from Python output
-            const resultsMatch = stdout.match(/RESULTS:(.+)/);
-            if (resultsMatch) {
-              try {
-                const results = JSON.parse(resultsMatch[1]);
-                // Update tracks with contents from Python results
-                tracks.forEach(track => {
-                  const matchingResult = results.find(r => 
-                    r.status === 'success' && 
-                    r.stream_index === track.stream_index
-                  );
-                  if (matchingResult && matchingResult.contents) {
-                    track.contents = matchingResult.contents;
-                  }
-                });
-              } catch (error) {
-                console.error('Error parsing subtitle results:', error);
-              }
-            }
-            
-            resolve({ success: true, tracks });
-          } else {
-            resolve({ success: false, error: 'No summary file found' });
-          }
-        } catch (error) {
-          console.error('Error parsing subtitle extraction results:', error);
-          resolve({ success: false, error: error.message });
+      if (fsSync.existsSync(outputFile)) {
+        // Read the VTT file and add the WEBVTT header if it's missing
+        let content = await fs.readFile(outputFile, 'utf-8');
+        if (!content.startsWith('WEBVTT')) {
+          content = 'WEBVTT\n\n' + content;
+          await fs.writeFile(outputFile, content, 'utf-8');
         }
-      } else {
-        resolve({ success: false, error: stderr || `Exited with code ${code}` });
-      }
-    });
 
-    pythonProcess.on('error', (err) => {
-      console.error('Failed to start Python process:', err);
-      resolve({ success: false, error: err.message });
-    });
-  });
+        tracks.push({
+          stream_index: index,
+          language,
+          title,
+          output_file: outputFile
+        });
+      }
+    }
+
+    return { success: true, tracks };
+  } catch (error) {
+    console.error('Error extracting subtitles:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // Add IPC handler to get subtitle contents
 ipcMain.handle('get-subtitle-contents', async (event, filePath) => {
   return subtitleContents.get(filePath) || null;
+});
+
+// Add subtitle file reading handler
+ipcMain.handle('read-subtitle-file', async (event, filePath) => {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error('Error reading subtitle file:', error);
+    return null;
+  }
 });
 
 // Clean up temporary subtitle directories on app exit
