@@ -11,7 +11,7 @@ import VideoQueue from './VideoQueue';
 import VideoControls from './VideoControls';
 import VideoHeader from './VideoHeader';
 
-const VideoPlayer = () => {
+const VideoPlayer = ({ initialMiniplayer = false }) => {
   const videoRef = useRef(null);
   const progressRef = useRef(null);
   const volumeRef = useRef(null);
@@ -25,7 +25,7 @@ const VideoPlayer = () => {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [videoSrc, setVideoSrc] = useState('');
-  const [isMiniplayer, setIsMiniplayer] = useState(false);
+  const [isMiniplayer, setIsMiniplayer] = useState(initialMiniplayer);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -45,6 +45,8 @@ const VideoPlayer = () => {
   const controlsTimeoutRef = useRef(null);
   const [isHoveringControls, setIsHoveringControls] = useState(false);
   const [subtitleResult, setSubtitleResult] = useState(null);
+  const [showSubtitleModal, setShowSubtitleModal] = useState(false);
+  const [selectedSubtitle, setSelectedSubtitle] = useState(null);
 
   // Sample videos
   const sampleVideos = [
@@ -1062,7 +1064,12 @@ const VideoPlayer = () => {
     const { ipcRenderer } = window.require('electron');
     const result = await ipcRenderer.invoke('extract-subtitles', file.path);
     setSubtitleResult(result);
-    alert(JSON.stringify(result, null, 2));
+    
+    if (result.success && result.tracks.length > 0) {
+      // Show the first subtitle track by default
+      setSelectedSubtitle(result.tracks[0]);
+      setShowSubtitleModal(true);
+    }
   };
 
   return (
@@ -1088,12 +1095,56 @@ const VideoPlayer = () => {
           Extract Subtitles
         </button>
       </div>
-      {/* Optionally show result */}
-      {subtitleResult && (
-        <pre style={{ color: 'white', background: 'black', padding: 10, position: 'absolute', top: 50, left: 10, zIndex: 9999 }}>
-          {JSON.stringify(subtitleResult, null, 2)}
-        </pre>
+
+      {/* Subtitle Modal */}
+      {showSubtitleModal && selectedSubtitle && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">
+                {selectedSubtitle.language} Subtitles
+                {selectedSubtitle.title && ` - ${selectedSubtitle.title}`}
+              </h2>
+              <button
+                onClick={() => setShowSubtitleModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Subtitle track selector */}
+            {subtitleResult?.tracks && subtitleResult.tracks.length > 1 && (
+              <div className="mb-4">
+                <select
+                  value={selectedSubtitle.stream_index}
+                  onChange={(e) => {
+                    const track = subtitleResult.tracks.find(
+                      t => t.stream_index === parseInt(e.target.value)
+                    );
+                    if (track) setSelectedSubtitle(track);
+                  }}
+                  className="bg-gray-800 text-white px-3 py-2 rounded w-full"
+                >
+                  {subtitleResult.tracks.map((track) => (
+                    <option key={track.stream_index} value={track.stream_index}>
+                      {track.language} {track.title ? `- ${track.title}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* Subtitle contents */}
+            <div className="flex-1 overflow-auto bg-gray-800 rounded p-4">
+              <pre className="text-sm whitespace-pre-wrap font-mono">
+                {selectedSubtitle.contents || 'No subtitle contents available'}
+              </pre>
+            </div>
+          </div>
+        </div>
       )}
+
       {isMiniplayer ? (
         // Miniplayer view - only show video and minimal controls
         <div 

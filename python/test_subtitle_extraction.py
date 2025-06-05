@@ -3,8 +3,11 @@
 import os
 import logging
 import time
+import tempfile
+import shutil
 from datetime import datetime
 from subtitle_extractor import SubtitleExtractor
+import json
 
 # Initialize logger at module level
 logger = logging.getLogger(__name__)
@@ -57,13 +60,19 @@ def extract_single_subtitle(extractor, mkv_file, output_dir, track):
             output_file,
             stream_index=stream_index
         )
+        
+        # Read the contents of the subtitle file
+        with open(result, 'r', encoding='utf-8') as f:
+            subtitle_contents = f.read()
+        
         logger.info(f"Successfully saved subtitles to: {result}")
         return {
             'status': 'success',
             'language': language,
             'title': title,
             'stream_index': stream_index,
-            'output_file': result
+            'output_file': result,
+            'contents': subtitle_contents
         }
     except Exception as e:
         logger.error(f"Failed to extract subtitle track {stream_index}: {e}")
@@ -130,59 +139,69 @@ def main():
     
     mkv_file = sys.argv[1]
     
-    # Create output directory in the project directory
-    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Go up one level from python/
-    output_dir = os.path.join(project_dir, 'extracted_subtitles')
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Setup logging
-    log_file = setup_logging(output_dir)
-    
-    if not os.path.exists(mkv_file):
-        logger.error(f"MKV file not found: {mkv_file}")
-        return
-    
-    # Initialize the subtitle extractor
-    extractor = SubtitleExtractor()
+    # Create a temporary directory for subtitle extraction
+    temp_dir = tempfile.mkdtemp(prefix='subtitle_extraction_')
+    logger.info(f"Created temporary directory: {temp_dir}")
     
     try:
-        # Get all available subtitle tracks
-        logger.info("Analyzing subtitle tracks...")
-        tracks = extractor.get_subtitle_tracks(mkv_file)
+        # Setup logging in the temporary directory
+        log_file = setup_logging(temp_dir)
         
-        if not tracks:
-            logger.error("No subtitle tracks found in the file.")
+        if not os.path.exists(mkv_file):
+            logger.error(f"MKV file not found: {mkv_file}")
             return
         
-        logger.info("\nAvailable subtitle tracks:")
-        for track in tracks:
-            language = track.get('tags', {}).get('language', 'unknown')
-            title = track.get('tags', {}).get('title', 'No title')
-            logger.info(f"Stream #{track['subtitle_index']}: Language: {language}, Title: {title}")
+        # Initialize the subtitle extractor
+        extractor = SubtitleExtractor()
         
-        # Extract each subtitle track to a separate file
-        logger.info("\nStarting subtitle extraction...")
-        extraction_results = []
-        
-        for track in tracks:
-            # Add a small delay between extractions to prevent system overload
-            if extraction_results:
-                time.sleep(1)
+        try:
+            # Get all available subtitle tracks
+            logger.info("Analyzing subtitle tracks...")
+            tracks = extractor.get_subtitle_tracks(mkv_file)
             
-            result = extract_single_subtitle(extractor, mkv_file, output_dir, track)
-            extraction_results.append(result)
-        
-        # Save extraction summary
-        summary_file = save_extraction_summary(output_dir, extraction_results, log_file, mkv_file)
-        
-        # Log final status
-        successful_extractions = sum(1 for r in extraction_results if r['status'] == 'success')
-        logger.info(f"\nExtraction completed. Successfully extracted {successful_extractions} out of {len(tracks)} subtitle tracks.")
-        logger.info(f"Summary saved to: {summary_file}")
-        logger.info(f"Detailed log saved to: {log_file}")
-        
+            if not tracks:
+                logger.error("No subtitle tracks found in the file.")
+                return
+            
+            logger.info("\nAvailable subtitle tracks:")
+            for track in tracks:
+                language = track.get('tags', {}).get('language', 'unknown')
+                title = track.get('tags', {}).get('title', 'No title')
+                logger.info(f"Stream #{track['subtitle_index']}: Language: {language}, Title: {title}")
+            
+            # Extract each subtitle track to a separate file
+            logger.info("\nStarting subtitle extraction...")
+            extraction_results = []
+            
+            for track in tracks:
+                # Add a small delay between extractions to prevent system overload
+                if extraction_results:
+                    time.sleep(1)
+                
+                result = extract_single_subtitle(extractor, mkv_file, temp_dir, track)
+                extraction_results.append(result)
+            
+            # Save extraction summary
+            summary_file = save_extraction_summary(temp_dir, extraction_results, log_file, mkv_file)
+            
+            # Log final status
+            successful_extractions = sum(1 for r in extraction_results if r['status'] == 'success')
+            logger.info(f"\nExtraction completed. Successfully extracted {successful_extractions} out of {len(tracks)} subtitle tracks.")
+            logger.info(f"Summary saved to: {summary_file}")
+            logger.info(f"Detailed log saved to: {log_file}")
+            
+            # Print the temporary directory path and results
+            print(f"TEMP_DIR:{temp_dir}")
+            print(f"RESULTS:{json.dumps(extraction_results)}")
+            
+        except Exception as e:
+            logger.error(f"\nAn unexpected error occurred: {e}")
+            raise
     except Exception as e:
-        logger.error(f"\nAn unexpected error occurred: {e}")
+        logger.error(f"Error during subtitle extraction: {e}")
+        # Clean up the temporary directory in case of error
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
 
 if __name__ == "__main__":
     main() 

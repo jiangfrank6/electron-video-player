@@ -13,6 +13,10 @@ ipcMain.on('update-dev-server-port', (event, port) => {
   devServerPort = port;
 });
 
+// Store temporary subtitle directories and their contents
+const tempSubtitleDirs = new Set();
+const subtitleContents = new Map();
+
 // Subtitle extraction IPC handler
 ipcMain.handle('extract-subtitles', async (event, filePath) => {
   return new Promise((resolve, reject) => {
@@ -23,8 +27,32 @@ ipcMain.handle('extract-subtitles', async (event, filePath) => {
     let stderr = '';
 
     pythonProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
-      console.log('Python stdout:', data.toString());
+      const output = data.toString();
+      stdout += output;
+      console.log('Python stdout:', output);
+      
+      // Check for temporary directory path
+      const tempDirMatch = output.match(/TEMP_DIR:(.+)/);
+      if (tempDirMatch) {
+        const tempDir = tempDirMatch[1].trim();
+        tempSubtitleDirs.add(tempDir);
+      }
+
+      // Check for results
+      const resultsMatch = output.match(/RESULTS:(.+)/);
+      if (resultsMatch) {
+        try {
+          const results = JSON.parse(resultsMatch[1]);
+          // Store subtitle contents
+          results.forEach(result => {
+            if (result.status === 'success' && result.contents) {
+              subtitleContents.set(result.output_file, result.contents);
+            }
+          });
+        } catch (error) {
+          console.error('Error parsing subtitle results:', error);
+        }
+      }
     });
 
     pythonProcess.stderr.on('data', (data) => {
@@ -34,10 +62,87 @@ ipcMain.handle('extract-subtitles', async (event, filePath) => {
 
     pythonProcess.on('close', (code) => {
       console.log('Python process exited with code:', code);
-      console.log('STDOUT:', stdout);
-      console.log('STDERR:', stderr);
       if (code === 0) {
-        resolve({ success: true, output: stdout });
+        try {
+          // Parse the output directory from the Python script's output
+          const tempDirMatch = stdout.match(/TEMP_DIR:(.+)/);
+          if (!tempDirMatch) {
+            resolve({ success: false, error: 'No temporary directory found in output' });
+            return;
+          }
+          
+          const tempDir = tempDirMatch[1].trim();
+          const summaryFile = path.join(tempDir, 'extraction_summary.txt');
+          
+          // Read the summary file to get the extraction results
+          const fs = require('fs');
+          if (fs.existsSync(summaryFile)) {
+            const summary = fs.readFileSync(summaryFile, 'utf8');
+            const tracks = [];
+            
+            // Parse the summary file to extract track information
+            const lines = summary.split('\n');
+            let currentTrack = null;
+            
+            for (const line of lines) {
+              if (line.startsWith('Stream #')) {
+                if (currentTrack) {
+                  tracks.push(currentTrack);
+                }
+                currentTrack = {
+                  stream_index: parseInt(line.match(/Stream #(\d+)/)[1]),
+                  language: 'unknown',
+                  title: 'No title',
+                  output_file: null,
+                  contents: null
+                };
+              } else if (line.includes('Language:')) {
+                currentTrack.language = line.split('Language:')[1].trim();
+              } else if (line.includes('Title:')) {
+                currentTrack.title = line.split('Title:')[1].trim();
+              } else if (line.includes('Output File:')) {
+                const filename = line.split('Output File:')[1].trim();
+                const outputFile = path.join(tempDir, filename);
+                currentTrack.output_file = outputFile;
+                // Add contents if available
+                if (subtitleContents.has(outputFile)) {
+                  currentTrack.contents = subtitleContents.get(outputFile);
+                }
+              }
+            }
+            
+            if (currentTrack) {
+              tracks.push(currentTrack);
+            }
+
+            // Get the results from Python output
+            const resultsMatch = stdout.match(/RESULTS:(.+)/);
+            if (resultsMatch) {
+              try {
+                const results = JSON.parse(resultsMatch[1]);
+                // Update tracks with contents from Python results
+                tracks.forEach(track => {
+                  const matchingResult = results.find(r => 
+                    r.status === 'success' && 
+                    r.stream_index === track.stream_index
+                  );
+                  if (matchingResult && matchingResult.contents) {
+                    track.contents = matchingResult.contents;
+                  }
+                });
+              } catch (error) {
+                console.error('Error parsing subtitle results:', error);
+              }
+            }
+            
+            resolve({ success: true, tracks });
+          } else {
+            resolve({ success: false, error: 'No summary file found' });
+          }
+        } catch (error) {
+          console.error('Error parsing subtitle extraction results:', error);
+          resolve({ success: false, error: error.message });
+        }
       } else {
         resolve({ success: false, error: stderr || `Exited with code ${code}` });
       }
@@ -48,6 +153,30 @@ ipcMain.handle('extract-subtitles', async (event, filePath) => {
       resolve({ success: false, error: err.message });
     });
   });
+});
+
+// Add IPC handler to get subtitle contents
+ipcMain.handle('get-subtitle-contents', async (event, filePath) => {
+  return subtitleContents.get(filePath) || null;
+});
+
+// Clean up temporary subtitle directories on app exit
+app.on('before-quit', () => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  for (const tempDir of tempSubtitleDirs) {
+    try {
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        console.log(`Cleaned up temporary directory: ${tempDir}`);
+      }
+    } catch (error) {
+      console.error(`Error cleaning up temporary directory ${tempDir}:`, error);
+    }
+  }
+  // Clear the contents map
+  subtitleContents.clear();
 });
 
 function createWindow() {

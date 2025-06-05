@@ -18,11 +18,60 @@ const VideoQueue = ({
     onQueueReorder(result.source.index, result.destination.index);
   };
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      onVideoUpload(files);
-    }
+  const handleFileUpload = async (files) => {
+    const { ipcRenderer } = window.require('electron');
+    const videoFiles = Array.from(files).filter(file => {
+      const isVideo = file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mkv');
+      if (!isVideo) {
+        ipcRenderer.send('show-error', {
+          title: 'Invalid File',
+          message: `"${file.name}" is not a supported video file.`
+        });
+      }
+      return isVideo;
+    });
+
+    if (videoFiles.length === 0) return;
+
+    // Process each video file
+    const processedVideos = await Promise.all(videoFiles.map(async (file) => {
+      const videoData = {
+        name: file.name,
+        path: file.path,
+        file: file,
+        subtitles: []
+      };
+
+      // Extract subtitles from MKV files
+      if (file.name.toLowerCase().endsWith('.mkv')) {
+        try {
+          const result = await ipcRenderer.invoke('extract-subtitles', file.path);
+          if (result.success && result.tracks) {
+            videoData.subtitles = result.tracks.map(track => ({
+              language: track.language,
+              title: track.title,
+              path: track.output_file
+            }));
+          } else if (!result.success) {
+            console.error('Subtitle extraction failed:', result.error);
+            ipcRenderer.send('show-error', {
+              title: 'Subtitle Extraction Failed',
+              message: `Failed to extract subtitles from "${file.name}": ${result.error}`
+            });
+          }
+        } catch (error) {
+          console.error('Error extracting subtitles:', error);
+          ipcRenderer.send('show-error', {
+            title: 'Subtitle Extraction Failed',
+            message: `Failed to extract subtitles from "${file.name}": ${error.message}`
+          });
+        }
+      }
+
+      return videoData;
+    }));
+
+    onVideoUpload(processedVideos);
   };
 
   return (
@@ -51,7 +100,7 @@ const VideoQueue = ({
                     type="file"
                     accept="video/*,.mkv"
                     multiple
-                    onChange={handleFileUpload}
+                    onChange={(e) => handleFileUpload(e.target.files)}
                     className="hidden"
                   />
                 </label>
@@ -165,7 +214,14 @@ VideoQueue.propTypes = {
     PropTypes.shape({
       name: PropTypes.string,
       path: PropTypes.string.isRequired,
-      file: PropTypes.object
+      file: PropTypes.object,
+      subtitles: PropTypes.arrayOf(
+        PropTypes.shape({
+          language: PropTypes.string,
+          title: PropTypes.string,
+          path: PropTypes.string
+        })
+      )
     })
   ).isRequired,
   currentIndex: PropTypes.number.isRequired,
