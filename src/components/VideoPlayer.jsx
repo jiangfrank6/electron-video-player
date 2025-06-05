@@ -1037,23 +1037,42 @@ const VideoPlayer = () => {
     };
   }, []);
 
-  // TEMPORARY: Test subtitle extraction button handler
-  const handleTestExtractSubtitles = async () => {
+  // Subtitle extraction button handler
+  const handleExtractSubtitles = async (file) => {
+    if (!file || !file.path) {
+      alert('Please select an MKV file first');
+      return;
+    }
+    
     const { ipcRenderer } = window.require('electron');
-    const result = await ipcRenderer.invoke('extract-subtitles');
+    const result = await ipcRenderer.invoke('extract-subtitles', file.path);
     setSubtitleResult(result);
     alert(JSON.stringify(result, null, 2));
   };
 
   return (
     <div className={`${isMiniplayer ? '' : 'min-h-screen'} bg-[#0a0b0e] text-white`}>
-      {/* TEMPORARY TEST BUTTON */}
-      <button
-        onClick={handleTestExtractSubtitles}
-        style={{ zIndex: 9999, position: 'absolute', top: 10, left: 10, background: 'red', color: 'white', padding: 8, borderRadius: 4 }}
-      >
-        Test Subtitle Extraction
-      </button>
+      {/* Subtitle extraction controls */}
+      <div style={{ zIndex: 9999, position: 'absolute', top: 10, left: 10, display: 'flex', gap: '10px' }}>
+        <input
+          type="file"
+          accept=".mkv"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (file) {
+              handleExtractSubtitles(file);
+            }
+          }}
+          style={{ display: 'none' }}
+          id="mkv-file-input"
+        />
+        <button
+          onClick={() => document.getElementById('mkv-file-input').click()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
+        >
+          Extract Subtitles
+        </button>
+      </div>
       {/* Optionally show result */}
       {subtitleResult && (
         <pre style={{ color: 'white', background: 'black', padding: 10, position: 'absolute', top: 50, left: 10, zIndex: 9999 }}>

@@ -6,6 +6,9 @@ import time
 from datetime import datetime
 from subtitle_extractor import SubtitleExtractor
 
+# Initialize logger at module level
+logger = logging.getLogger(__name__)
+
 def setup_logging(output_dir):
     """Setup logging to both file and console."""
     # Create a logs directory inside the output directory
@@ -119,8 +122,13 @@ def save_extraction_summary(output_dir, results, log_file, mkv_file):
     return summary_file
 
 def main():
-    # MKV file path
-    mkv_file = '/Users/jiang/Downloads/[Anime Time] Solo Leveling (Season 02) [1080p][HEVC 10bit x265][AAC][Multi Sub]/[Anime Time] Solo Leveling - S02E06 [1080p][HEVC 10bit x265][AAC][Multi Sub].mkv'
+    # Get the MKV file path from command line arguments
+    import sys
+    if len(sys.argv) < 2:
+        logger.error("Please provide an MKV file path as argument")
+        return
+    
+    mkv_file = sys.argv[1]
     
     # Create output directory in the project directory
     project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Go up one level from python/
@@ -129,9 +137,6 @@ def main():
     
     # Setup logging
     log_file = setup_logging(output_dir)
-    
-    global logger
-    logger = logging.getLogger(__name__)
     
     if not os.path.exists(mkv_file):
         logger.error(f"MKV file not found: {mkv_file}")
