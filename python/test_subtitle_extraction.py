@@ -8,6 +8,8 @@ import shutil
 from datetime import datetime
 from subtitle_extractor import SubtitleExtractor
 import json
+import concurrent.futures
+from typing import List, Dict
 
 # Initialize logger at module level
 logger = logging.getLogger(__name__)
@@ -169,17 +171,38 @@ def main():
                 title = track.get('tags', {}).get('title', 'No title')
                 logger.info(f"Stream #{track['subtitle_index']}: Language: {language}, Title: {title}")
             
-            # Extract each subtitle track to a separate file
-            logger.info("\nStarting subtitle extraction...")
+            # Extract each subtitle track in parallel using ThreadPoolExecutor
+            logger.info("\nStarting parallel subtitle extraction...")
             extraction_results = []
             
-            for track in tracks:
-                # Add a small delay between extractions to prevent system overload
-                if extraction_results:
-                    time.sleep(1)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(tracks), 8)) as executor:
+                # Create a list of futures for each subtitle extraction task
+                future_to_track = {
+                    executor.submit(extract_single_subtitle, extractor, mkv_file, temp_dir, track): track
+                    for track in tracks
+                }
                 
-                result = extract_single_subtitle(extractor, mkv_file, temp_dir, track)
-                extraction_results.append(result)
+                # Process completed futures as they finish
+                for future in concurrent.futures.as_completed(future_to_track):
+                    track = future_to_track[future]
+                    try:
+                        result = future.result()
+                        extraction_results.append(result)
+                        language = track.get('tags', {}).get('language', 'unknown')
+                        title = track.get('tags', {}).get('title', 'No title')
+                        if result['status'] == 'success':
+                            logger.info(f"Completed extraction of {language} subtitles ({title})")
+                        else:
+                            logger.error(f"Failed extraction of {language} subtitles ({title}): {result.get('error', 'Unknown error')}")
+                    except Exception as e:
+                        logger.error(f"Exception occurred while extracting subtitle track {track['subtitle_index']}: {e}")
+                        extraction_results.append({
+                            'status': 'failed',
+                            'language': track.get('tags', {}).get('language', 'unknown'),
+                            'title': track.get('tags', {}).get('title', 'No title'),
+                            'stream_index': track['subtitle_index'],
+                            'error': str(e)
+                        })
             
             # Save extraction summary
             summary_file = save_extraction_summary(temp_dir, extraction_results, log_file, mkv_file)
