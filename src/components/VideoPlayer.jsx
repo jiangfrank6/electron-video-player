@@ -10,7 +10,6 @@ import SkipButton from './SkipButton';
 import VideoQueue from './VideoQueue';
 import VideoControls from './VideoControls';
 import VideoHeader from './VideoHeader';
-import SubtitleModal from './SubtitleModal';
 
 const VideoPlayer = ({ initialMiniplayer = false }) => {
   const videoRef = useRef(null);
@@ -46,7 +45,6 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
   const controlsTimeoutRef = useRef(null);
   const [isHoveringControls, setIsHoveringControls] = useState(false);
   const [subtitleResult, setSubtitleResult] = useState(null);
-  const [showSubtitleModal, setShowSubtitleModal] = useState(false);
   const [selectedSubtitle, setSelectedSubtitle] = useState(null);
 
   // Sample videos
@@ -1024,8 +1022,14 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
   }, [isPlaying, showSettings, isDraggingProgress]);
 
   // Add time update handler
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = (newTime) => {
     if (!videoRef.current) return;
+    
+    // If newTime is provided, it means we're seeking
+    if (typeof newTime === 'number') {
+      videoRef.current.currentTime = newTime;
+    }
+    
     setCurrentTime(videoRef.current.currentTime);
 
     // If we're in miniplayer mode, send time updates to main window
@@ -1069,14 +1073,11 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
     if (result.success && result.tracks.length > 0) {
       // Show the first subtitle track by default
       setSelectedSubtitle(result.tracks[0]);
-      setShowSubtitleModal(true);
     }
   };
 
   const handleSubtitleSelect = async (subtitle) => {
-    console.log('Subtitle selected:', subtitle);
     setSelectedSubtitle(subtitle);
-    setShowSubtitleModal(false);
 
     if (videoRef.current) {
       // Remove existing subtitle tracks
@@ -1175,15 +1176,6 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
           Extract Subtitles
         </button>
       </div>
-
-      {/* Subtitle Modal */}
-      <SubtitleModal
-        isOpen={showSubtitleModal}
-        onClose={() => setShowSubtitleModal(false)}
-        subtitles={videoQueue[currentQueueIndex]?.subtitles || []}
-        selectedSubtitle={selectedSubtitle}
-        onSubtitleSelect={handleSubtitleSelect}
-      />
 
       {isMiniplayer ? (
         // Miniplayer view - only show video and minimal controls
@@ -1466,19 +1458,9 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
                       onPlayPauseClick={togglePlay}
                       onVolumeChange={handleVolumeChange}
                       onToggleMute={toggleMute}
-                      onTimeUpdate={(time) => {
-                        if (videoRef.current) {
-                          videoRef.current.currentTime = time;
-                          setCurrentTime(time);
-                        }
-                      }}
+                      onTimeUpdate={handleTimeUpdate}
                       onSkipTime={skip}
-                      onPlaybackRateChange={(rate) => {
-                        if (videoRef.current) {
-                          videoRef.current.playbackRate = rate;
-                          setPlaybackRate(rate);
-                        }
-                      }}
+                      onPlaybackRateChange={changePlaybackRate}
                       onAutoplayChange={setAutoplay}
                       onToggleMiniplayer={toggleMiniplayer}
                       onToggleFullscreen={toggleFullscreen}
@@ -1489,7 +1471,9 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
                       onMouseEnter={() => setIsHoveringControls(true)}
                       onMouseLeave={() => setIsHoveringControls(false)}
                       isMiniplayer={isMiniplayer}
-                      onSubtitleClick={() => setShowSubtitleModal(true)}
+                      subtitles={videoQueue[currentQueueIndex]?.subtitles || []}
+                      selectedSubtitle={selectedSubtitle}
+                      onSubtitleSelect={handleSubtitleSelect}
                       hasSubtitles={videoQueue[currentQueueIndex]?.subtitles?.length > 0}
                     />
                   </div>

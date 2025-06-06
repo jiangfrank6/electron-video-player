@@ -9,6 +9,7 @@ import SkipButton from './SkipButton';
 import ProgressBar from './ProgressBar';
 import FullscreenButton from './FullscreenButton';
 import MiniplayerButton from './MiniplayerButton';
+import SubtitleSettings from './SubtitleSettings';
 
 const VideoControls = ({
   showControls,
@@ -35,7 +36,9 @@ const VideoControls = ({
   onMouseEnter,
   onMouseLeave,
   isMiniplayer = false,
-  onSubtitleClick,
+  subtitles = [],
+  selectedSubtitle,
+  onSubtitleSelect,
   hasSubtitles = false
 }) => {
   return (
@@ -103,13 +106,11 @@ const VideoControls = ({
           <div className="flex items-center space-x-4">
             {/* Subtitle button */}
             {hasSubtitles && (
-              <button
-                onClick={onSubtitleClick}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                title="Subtitle Settings"
-              >
-                <Subtitles className="w-5 h-5 text-white" />
-              </button>
+              <SubtitleSettings
+                subtitles={subtitles}
+                selectedSubtitle={selectedSubtitle}
+                onSubtitleSelect={onSubtitleSelect}
+              />
             )}
 
             {/* Settings button */}
@@ -168,7 +169,19 @@ VideoControls.propTypes = {
   onMouseEnter: PropTypes.func.isRequired,
   onMouseLeave: PropTypes.func.isRequired,
   isMiniplayer: PropTypes.bool,
-  onSubtitleClick: PropTypes.func,
+  subtitles: PropTypes.arrayOf(
+    PropTypes.shape({
+      language: PropTypes.string.isRequired,
+      title: PropTypes.string,
+      path: PropTypes.string.isRequired
+    })
+  ),
+  selectedSubtitle: PropTypes.shape({
+    language: PropTypes.string.isRequired,
+    title: PropTypes.string,
+    path: PropTypes.string.isRequired
+  }),
+  onSubtitleSelect: PropTypes.func.isRequired,
   hasSubtitles: PropTypes.bool
 };
 
