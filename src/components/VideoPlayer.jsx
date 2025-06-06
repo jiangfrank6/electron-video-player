@@ -1106,23 +1106,36 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
             });
           });
 
-          track.addEventListener('load', () => {
-            console.log('Subtitle track loaded successfully');
+          // Add the track to the video element
+          videoRef.current.appendChild(track);
+          console.log('Track added to video element');
+
+          // Force the track to load and set its mode
+          const forceTrackLoad = () => {
             if (track.track) {
               console.log('Setting track mode to showing');
               track.track.mode = 'showing';
-            } else {
-              console.error('Track object not available after load');
+              return true;
             }
-          });
+            return false;
+          };
 
-          videoRef.current.appendChild(track);
-          console.log('Track element added to video');
+          // Try to set the track mode immediately
+          if (!forceTrackLoad()) {
+            // If immediate attempt fails, try again after a short delay
+            setTimeout(() => {
+              if (!forceTrackLoad()) {
+                // If still not loaded, try one more time after a longer delay
+                setTimeout(forceTrackLoad, 1000);
+              }
+            }, 100);
+          }
 
           // Clean up the blob URL when the video is unloaded
           videoRef.current.addEventListener('unload', () => {
             URL.revokeObjectURL(subtitleUrl);
           }, { once: true });
+
         } catch (error) {
           console.error('Error processing subtitle:', error);
           const { ipcRenderer } = window.require('electron');
