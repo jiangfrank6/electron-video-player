@@ -44,7 +44,6 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
   const progressBarRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
   const [isHoveringControls, setIsHoveringControls] = useState(false);
-  const [subtitleResult, setSubtitleResult] = useState(null);
   const [selectedSubtitle, setSelectedSubtitle] = useState(null);
 
   // Sample videos
@@ -1059,23 +1058,6 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
     };
   }, []);
 
-  // Subtitle extraction button handler
-  const handleExtractSubtitles = async (file) => {
-    if (!file || !file.path) {
-      alert('Please select an MKV file first');
-      return;
-    }
-    
-    const { ipcRenderer } = window.require('electron');
-    const result = await ipcRenderer.invoke('extract-subtitles', file.path);
-    setSubtitleResult(result);
-    
-    if (result.success && result.tracks.length > 0) {
-      // Show the first subtitle track by default
-      setSelectedSubtitle(result.tracks[0]);
-    }
-  };
-
   const handleSubtitleSelect = async (subtitle) => {
     setSelectedSubtitle(subtitle);
 
@@ -1155,28 +1137,6 @@ const VideoPlayer = ({ initialMiniplayer = false }) => {
 
   return (
     <div className={`${isMiniplayer ? '' : 'min-h-screen'} bg-[#0a0b0e] text-white`}>
-      {/* Subtitle extraction controls */}
-      <div style={{ zIndex: 9999, position: 'absolute', top: 10, left: 10, display: 'flex', gap: '10px' }}>
-        <input
-          type="file"
-          accept=".mkv"
-          onChange={(e) => {
-            const file = e.target.files[0];
-            if (file) {
-              handleExtractSubtitles(file);
-            }
-          }}
-          style={{ display: 'none' }}
-          id="mkv-file-input"
-        />
-        <button
-          onClick={() => document.getElementById('mkv-file-input').click()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-        >
-          Extract Subtitles
-        </button>
-      </div>
-
       {isMiniplayer ? (
         // Miniplayer view - only show video and minimal controls
         <div 
